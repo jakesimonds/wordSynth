@@ -3,7 +3,12 @@ import 'antd/dist/reset.css';
 
 function App() {
   return (
-    <div style={{ padding: '20px', maxWidth: '800px', margin: '0 auto' }}>
+    <div style={{ 
+      padding: '20px', 
+      width: '100vw',  // Full viewport width
+      minHeight: '100vh',  // Full viewport height
+      boxSizing: 'border-box'  // Include padding in width calculation
+    }}>
       <LlamaStream />
     </div>
   );

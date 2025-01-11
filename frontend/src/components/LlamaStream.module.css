@@ -13,6 +13,8 @@
     white-space: pre-wrap;
     font-family: monospace;
     transition: all 0.3s ease;
+    width: 100%;
+    box-sizing: border-box;
 }
 
 .currentResponse {
@@ -39,4 +41,10 @@
         transform: translateY(0);
         opacity: 1;
     }
+} 
+
+/* Remove max-width constraints from Space components */
+:global(.ant-space) {
+    width: 100% !important;
+    max-width: none !important;
 } 
