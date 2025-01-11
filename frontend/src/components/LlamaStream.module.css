@@ -6,3 +6,37 @@
     background-color: #f5f5f5;
     padding: 16px;
 } 
+
+.responseBox {
+    height: 150px;
+    overflow-y: auto;
+    white-space: pre-wrap;
+    font-family: monospace;
+    transition: all 0.3s ease;
+}
+
+.currentResponse {
+    background-color: #f5f5f5;
+    border-left: 4px solid #1890ff;
+}
+
+.previousResponse {
+    background-color: #fafafa;
+    opacity: 0.8;
+}
+
+/* Optional: Add some animation */
+.responseBox {
+    animation: slideIn 0.3s ease;
+}
+
+@keyframes slideIn {
+    from {
+        transform: translateY(-20px);
+        opacity: 0;
+    }
+    to {
+        transform: translateY(0);
+        opacity: 1;
+    }
+} 

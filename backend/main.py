@@ -29,7 +29,7 @@ params = {
 async def stream_text():
     async def event_generator():
         client = Client()
-        current_context = "Describe Homer Simpson using adjectives"  # You can make this configurable
+        current_context = "Describe Homer Simpson using adjectives"
         
         try:
             stream = client.generate(
@@ -47,12 +47,17 @@ async def stream_text():
             
             for chunk in stream:
                 if chunk.get('done', False):
+                    yield {
+                        "event": "done",
+                        "data": "complete"
+                    }
+                    await asyncio.sleep(0.1)
                     break
                 yield {
                     "event": "message",
                     "data": chunk['response']
                 }
-                await asyncio.sleep(0.1)  # Small delay between chunks
+                await asyncio.sleep(0.1)
                 
         except Exception as e:
             print(f"Error in stream: {e}")
