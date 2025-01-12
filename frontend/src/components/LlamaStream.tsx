@@ -6,54 +6,39 @@ interface Params {
     temperature: number;
     top_p: number;
     top_k: number;
-    num_ctx: number;
     num_predict: number;
 }
 
 const LlamaStream: React.FC = () => {
-    const [previousResponse, setPreviousResponse] = useState<string>('');
     const [currentResponse, setCurrentResponse] = useState<string>('');
     const [params, setParams] = useState<Params>({
         temperature: 0.4,
         top_p: 0.4,
         top_k: 30,
-        num_ctx: 1024,
         num_predict: 48
     });
 
     useEffect(() => {
-        let eventSource: EventSource;
-
-        const connectEventSource = () => {
-            eventSource = new EventSource('http://localhost:8000/stream');
+        const setupEventSource = () => {
+            const eventSource = new EventSource('http://localhost:8000/stream');
             
             eventSource.onmessage = (event) => {
-                console.log('Message received:', event.data);
                 setCurrentResponse(prev => prev + event.data);
             };
 
             eventSource.addEventListener('done', () => {
-                console.log('Done event received, current response:', currentResponse);
-                setPreviousResponse(currentResponse);
                 setCurrentResponse('');
-                // Reconnect after completion
                 eventSource.close();
-                connectEventSource();
+                setupEventSource();
             });
 
-            eventSource.onerror = (error) => {
-                console.log('EventSource error:', error);
-                eventSource.close();
-                setTimeout(connectEventSource, 1000); // Reconnect after 1 second
-            };
+            return eventSource;
         };
 
-        connectEventSource();
+        const eventSource = setupEventSource();
 
         return () => {
-            if (eventSource) {
-                eventSource.close();
-            }
+            eventSource.close();
         };
     }, []);
 
@@ -76,23 +61,12 @@ const LlamaStream: React.FC = () => {
 
     return (
         <Space direction="vertical" size="large" style={{ width: '100%' }}>
-            <Space direction="vertical" size="middle" style={{ width: '100%' }}>
-                <Card 
-                    className={`${styles.responseBox} ${styles.currentResponse}`}
-                    title="Current Response"
-                >
-                    {currentResponse || 'Waiting for response...'}
-                </Card>
-
-                {previousResponse && (
-                    <Card 
-                        className={`${styles.responseBox} ${styles.previousResponse}`}
-                        title="Previous Response"
-                    >
-                        {previousResponse}
-                    </Card>
-                )}
-            </Space>
+            <Card 
+                className={`${styles.responseBox} ${styles.currentResponse}`}
+                title="Current Response"
+            >
+                {currentResponse || 'Waiting for response...'}
+            </Card>
             
             <Card title="Parameters">
                 <Space direction="vertical" style={{ width: '100%' }}>
@@ -124,16 +98,6 @@ const LlamaStream: React.FC = () => {
                             max={100}
                             step={5}
                             onChange={(value: number) => updateParameter('top_k', value)}
-                        />
-                    </div>
-                    <div>
-                        <label>Context Window</label>
-                        <Slider
-                            value={params.num_ctx}
-                            min={128}
-                            max={4096}
-                            step={128}
-                            onChange={(value: number) => updateParameter('num_ctx', value)}
                         />
                     </div>
                     <div>

@@ -7,21 +7,18 @@ from ollama import Client
 
 app = FastAPI()
 
-# Add CORS middleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173"],  # React dev server
+    allow_origins=["http://localhost:5173"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# Store current parameters (using your existing defaults)
 params = {
     'temperature': 0.4,
     'top_p': 0.4,
     'top_k': 30,
-    'num_ctx': 1024,
     'num_predict': 48
 }
 
@@ -29,7 +26,7 @@ params = {
 async def stream_text():
     async def event_generator():
         client = Client()
-        current_context = "Describe Homer Simpson using adjectives"
+        current_context = "Describe Homer Simpson using colorful, memorable adjectives. Alliteration encouraged but not required. Be accurate."
         
         try:
             stream = client.generate(
@@ -40,7 +37,6 @@ async def stream_text():
                     'temperature': params['temperature'],
                     'top_p': params['top_p'],
                     'top_k': int(params['top_k']),
-                    'num_ctx': int(params['num_ctx']),
                     'num_predict': int(params['num_predict'])
                 }
             )
@@ -60,7 +56,6 @@ async def stream_text():
                 await asyncio.sleep(0.1)
                 
         except Exception as e:
-            print(f"Error in stream: {e}")
             yield {
                 "event": "error",
                 "data": str(e)
