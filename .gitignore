@@ -1,2 +1,12 @@
-node_modules
-node_modules
+# Node modules
+node_modules/
+
+# Model files
+models/
+
+# Python cache
+__pycache__/
+*.pyc
+
+# Environment
+.env

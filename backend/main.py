@@ -3,7 +3,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from sse_starlette.sse import EventSourceResponse
 from typing import Dict
 import asyncio
-from ollama import Client
+from llama_cpp import Llama
+import os
 
 app = FastAPI()
 
@@ -13,6 +14,13 @@ app.add_middleware(
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
+)
+
+# Initialize Llama model
+llm = Llama(
+    model_path="./models/Llama-3.2-1B-Instruct-Q3_K_L.gguf",
+    n_ctx=2048,
+    n_threads=4
 )
 
 params = {
@@ -25,33 +33,28 @@ params = {
 @app.get("/stream")
 async def stream_text():
     async def event_generator():
-        client = Client()
         current_context = "Describe Homer Simpson using colorful, memorable adjectives. Alliteration encouraged but not required. Be accurate."
         
         try:
-            stream = client.generate(
-                model='llama3.2:1b',
+            # Generate stream using llama.cpp
+            for chunk in llm.create_completion(
                 prompt=current_context,
-                stream=True,
-                options={
-                    'temperature': params['temperature'],
-                    'top_p': params['top_p'],
-                    'top_k': int(params['top_k']),
-                    'num_predict': int(params['num_predict'])
-                }
-            )
-            
-            for chunk in stream:
-                if chunk.get('done', False):
+                max_tokens=params['num_predict'],
+                temperature=params['temperature'],
+                top_p=params['top_p'],
+                top_k=params['top_k'],
+                stream=True
+            ):
+                if chunk['choices'][0]['finish_reason'] is not None:
                     yield {
                         "event": "done",
                         "data": "complete"
                     }
-                    await asyncio.sleep(0.1)
                     break
+                
                 yield {
                     "event": "message",
-                    "data": chunk['response']
+                    "data": chunk['choices'][0]['text']
                 }
                 await asyncio.sleep(0.1)
                 
