@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Slider, Space, Card } from 'antd';
 
 interface Params {
@@ -8,28 +8,47 @@ interface Params {
     num_predict: number;
 }
 
+// Custom hook to manage streaming
+function useStreamingText() {
+    const [text, setText] = useState('');
+    const [isConnected, setIsConnected] = useState(false);
+
+    const connect = () => {
+        const eventSource = new EventSource('http://localhost:8000/stream');
+        setIsConnected(true);
+
+        eventSource.onmessage = (event) => {
+            setText(prev => prev + event.data);
+        };
+
+        eventSource.addEventListener('done', () => {
+            setText('');
+            eventSource.close();
+            connect(); // Reconnect for next generation
+        });
+
+        return () => {
+            eventSource.close();
+            setIsConnected(false);
+        };
+    };
+
+    // Initial connection
+    if (!isConnected) {
+        connect();
+    }
+
+    return text;
+}
+
 const LlamaStream: React.FC = () => {
-    const [currentResponse, setCurrentResponse] = useState('');
+    const currentResponse = useStreamingText();
     const [params, setParams] = useState<Params>({
         temperature: 0.4,
         top_p: 0.4,
         top_k: 30,
         num_predict: 48
     });
-
-    useEffect(() => {
-        const eventSource = new EventSource('http://localhost:8000/stream');
-        
-        eventSource.onmessage = (event) => {
-            setCurrentResponse(prev => prev + event.data);
-        };
-
-        eventSource.addEventListener('done', () => {
-            setCurrentResponse('');
-        });
-
-        return () => eventSource.close();
-    }, []);
 
     const updateParameter = async (key: keyof Params, value: number) => {
         const newParams = { ...params, [key]: value };

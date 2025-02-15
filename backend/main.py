@@ -30,39 +30,44 @@ params = {
     'num_predict': 48
 }
 
+# Add a lock for generation
+generation_lock = asyncio.Lock()
+
 @app.get("/stream")
 async def stream_text():
     async def event_generator():
-        current_context = "Describe Homer Simpson using colorful, memorable adjectives. Alliteration encouraged but not required. Be accurate."
-        
-        try:
-            # Generate stream using llama.cpp
-            for chunk in llm.create_completion(
-                prompt=current_context,
-                max_tokens=params['num_predict'],
-                temperature=params['temperature'],
-                top_p=params['top_p'],
-                top_k=params['top_k'],
-                stream=True
-            ):
-                if chunk['choices'][0]['finish_reason'] is not None:
+        async with generation_lock:  # Ensure only one generation at a time
+            current_context = "Explain in plain language how to reverse a string programmatically."
+            
+            try:
+                # Generate stream using llama.cpp
+                for chunk in llm.create_completion(
+                    prompt=current_context,
+                    max_tokens=params['num_predict'],
+                    temperature=params['temperature'],
+                    top_p=params['top_p'],
+                    top_k=params['top_k'],
+                    stream=True
+                ):
+                    if chunk['choices'][0]['finish_reason'] is not None:
+                        yield {
+                            "event": "done",
+                            "data": "complete"
+                        }
+                        break
+                    
                     yield {
-                        "event": "done",
-                        "data": "complete"
+                        "event": "message",
+                        "data": chunk['choices'][0]['text']
                     }
-                    break
-                
+                    #await asyncio.sleep(0.1)
+                    
+            except Exception as e:
+                print(f"Generation error: {str(e)}")  # Added logging
                 yield {
-                    "event": "message",
-                    "data": chunk['choices'][0]['text']
+                    "event": "error",
+                    "data": str(e)
                 }
-                await asyncio.sleep(0.1)
-                
-        except Exception as e:
-            yield {
-                "event": "error",
-                "data": str(e)
-            }
 
     return EventSourceResponse(event_generator())
 
