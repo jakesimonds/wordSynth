@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import { Slider, Space, Card } from 'antd';
-import styles from './LlamaStream.module.css';
 
 interface Params {
     temperature: number;
@@ -10,7 +9,7 @@ interface Params {
 }
 
 const LlamaStream: React.FC = () => {
-    const [currentResponse, setCurrentResponse] = useState<string>('');
+    const [currentResponse, setCurrentResponse] = useState('');
     const [params, setParams] = useState<Params>({
         temperature: 0.4,
         top_p: 0.4,
@@ -19,27 +18,13 @@ const LlamaStream: React.FC = () => {
     });
 
     useEffect(() => {
-        const setupEventSource = () => {
-            const eventSource = new EventSource('http://localhost:8000/stream');
-            
-            eventSource.onmessage = (event) => {
-                setCurrentResponse(prev => prev + event.data);
-            };
-
-            eventSource.addEventListener('done', () => {
-                setCurrentResponse('');
-                eventSource.close();
-                setupEventSource();
-            });
-
-            return eventSource;
+        const eventSource = new EventSource('http://localhost:8000/stream');
+        
+        eventSource.onmessage = (event) => {
+            setCurrentResponse(prev => prev + event.data);
         };
 
-        const eventSource = setupEventSource();
-
-        return () => {
-            eventSource.close();
-        };
+        return () => eventSource.close();
     }, []);
 
     const updateParameter = async (key: keyof Params, value: number) => {
@@ -59,14 +44,37 @@ const LlamaStream: React.FC = () => {
         }
     };
 
+    const injectTokens = async (text: string) => {
+        try {
+            await fetch('http://localhost:8000/inject-tokens', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ text: text }),
+            });
+        } catch (error) {
+            console.error('Failed to inject tokens:', error);
+        }
+    };
+
     return (
         <Space direction="vertical" size="large" style={{ width: '100%' }}>
             <Card 
-                className={`${styles.responseBox} ${styles.currentResponse}`}
                 title="Current Response"
+                style={{ minHeight: '400px' }}
             >
-                {currentResponse || 'Waiting for response...'}
+                <div>
+                    {currentResponse || 'Waiting for response...'}
+                </div>
             </Card>
+            
+            <button 
+                onClick={() => injectTokens("but wait, let's reconsider")}
+                style={{ marginBottom: '10px' }}
+            >
+                Inject Reconsideration
+            </button>
             
             <Card title="Parameters">
                 <Space direction="vertical" style={{ width: '100%' }}>

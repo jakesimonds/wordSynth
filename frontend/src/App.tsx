@@ -1,4 +1,5 @@
 import LlamaStream from './components/LlamaStream';
+import { StreamProvider } from './contexts/StreamContext';
 import 'antd/dist/reset.css';
 
 function App() {
@@ -9,7 +10,9 @@ function App() {
       minHeight: '100vh',  // Full viewport height
       boxSizing: 'border-box'  // Include padding in width calculation
     }}>
-      <LlamaStream />
+      <StreamProvider>
+        <LlamaStream />
+      </StreamProvider>
     </div>
   );
 }

@@ -18,7 +18,7 @@ app.add_middleware(
 
 # Initialize Llama model
 llm = Llama(
-    model_path="./models/Llama-3.2-1B-Instruct-Q3_K_L.gguf",
+    model_path="../models/Llama-3.2-1B-Instruct-Q3_K_L.gguf",
     n_ctx=2048,
     n_threads=4
 )
@@ -70,4 +70,10 @@ async def stream_text():
 async def update_parameters(new_params: Dict):
     global params
     params.update(new_params)
-    return {"status": "success", "params": params} 
+    return {"status": "success", "params": params}
+
+@app.post("/inject-tokens")
+async def inject_tokens(data: dict):
+    text = data.get("text", "")
+    print(f"Would inject tokens: {text}")  # Just logging for now
+    return {"status": "ok"} 
