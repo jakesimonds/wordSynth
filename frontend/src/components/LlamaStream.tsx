@@ -1,150 +1,144 @@
-import React, { useState } from 'react';
-import { Slider, Space, Card } from 'antd';
+import React, { useState, useEffect, useRef } from "react";
+import { Slider, Space, Card, Button } from "antd";
+
+interface Generation {
+  text: string;
+  color: string;
+}
 
 interface Params {
-    temperature: number;
-    top_p: number;
-    top_k: number;
-    num_predict: number;
+  temperature: number;
+  top_p: number;
+  top_k: number;
+  num_predict: number;
 }
 
-// Custom hook to manage streaming
-function useStreamingText() {
-    const [text, setText] = useState('');
-    const [isConnected, setIsConnected] = useState(false);
+// Custom hook to manage streaming generations.
+function useStreamingGenerations() {
+  const [generations, setGenerations] = useState<Generation[]>([]);
+  const [currentText, setCurrentText] = useState("");
+  const [isConnected, setIsConnected] = useState(false);
+  const eventSourceRef = useRef<EventSource | null>(null);
+  const currentTextRef = useRef(currentText);
 
-    const connect = () => {
-        const eventSource = new EventSource('http://localhost:8000/stream');
-        setIsConnected(true);
+  // Update the ref whenever currentText changes.
+  useEffect(() => {
+    currentTextRef.current = currentText;
+  }, [currentText]);
 
-        eventSource.onmessage = (event) => {
-            setText(prev => prev + event.data);
-        };
+  const colors = ["#FF5733", "#33FF57", "#3357FF", "#F833FF", "#33FFF8"];
 
-        eventSource.addEventListener('done', () => {
-            setText('');
-            eventSource.close();
-            connect(); // Reconnect for next generation
-        });
+  const connect = () => {
+    if (eventSourceRef.current) return; // Already connected.
+    const eventSource = new EventSource("http://localhost:8000/stream");
+    eventSourceRef.current = eventSource;
+    setIsConnected(true);
 
-        return () => {
-            eventSource.close();
-            setIsConnected(false);
-        };
+    eventSource.onmessage = (event) => {
+      currentTextRef.current += event.data;
+      setCurrentText(currentTextRef.current);
     };
 
-    // Initial connection
-    if (!isConnected) {
-        connect();
-    }
-
-    return text;
-}
-
-const LlamaStream: React.FC = () => {
-    const currentResponse = useStreamingText();
-    const [params, setParams] = useState<Params>({
-        temperature: 0.4,
-        top_p: 0.4,
-        top_k: 30,
-        num_predict: 48
+    eventSource.addEventListener("done", () => {
+      setGenerations((prev) => {
+        const newGeneration: Generation = {
+          text: currentTextRef.current,
+          color: colors[prev.length % colors.length],
+        };
+        return [...prev, newGeneration];
+      });
+      eventSource.close();
+      eventSourceRef.current = null;
+      setIsConnected(false);
     });
+  };
 
-    const updateParameter = async (key: keyof Params, value: number) => {
-        const newParams = { ...params, [key]: value };
-        setParams(newParams);
-        
-        try {
-            await fetch('http://localhost:8000/update-params', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({ [key]: value }),
-            });
-        } catch (error) {
-            console.error('Failed to update parameters:', error);
-        }
-    };
+  return { generations, currentText, connect, setCurrentText, isConnected };
+}
 
-    const injectTokens = async (text: string) => {
-        try {
-            await fetch('http://localhost:8000/inject-tokens', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({ text: text }),
-            });
-        } catch (error) {
-            console.error('Failed to inject tokens:', error);
-        }
-    };
+const LlamaStream = () => {
+  const { generations, currentText, connect, setCurrentText, isConnected } = useStreamingGenerations();
+  const [params, setParams] = useState<Params>({
+    temperature: 0.8,
+    top_p: 0.95,
+    top_k: 50,
+    num_predict: 64,
+  });
 
-    return (
-        <Space direction="vertical" size="large" style={{ width: '100%' }}>
-            <Card 
-                title="Current Response"
-                style={{ minHeight: '400px' }}
-            >
-                <div>
-                    {currentResponse || 'Waiting for response...'}
-                </div>
-            </Card>
-            
-            <button 
-                onClick={() => injectTokens("but wait, let's reconsider")}
-                style={{ marginBottom: '10px' }}
-            >
-                Inject Reconsideration
-            </button>
-            
-            <Card title="Parameters">
-                <Space direction="vertical" style={{ width: '100%' }}>
-                    <div>
-                        <label>Temperature</label>
-                        <Slider
-                            value={params.temperature}
-                            min={0}
-                            max={2}
-                            step={0.1}
-                            onChange={(value: number) => updateParameter('temperature', value)}
-                        />
-                    </div>
-                    <div>
-                        <label>Top P</label>
-                        <Slider
-                            value={params.top_p}
-                            min={0}
-                            max={1}
-                            step={0.1}
-                            onChange={(value: number) => updateParameter('top_p', value)}
-                        />
-                    </div>
-                    <div>
-                        <label>Top K</label>
-                        <Slider
-                            value={params.top_k}
-                            min={1}
-                            max={100}
-                            step={5}
-                            onChange={(value: number) => updateParameter('top_k', value)}
-                        />
-                    </div>
-                    <div>
-                        <label>Prediction Length</label>
-                        <Slider
-                            value={params.num_predict}
-                            min={4}
-                            max={128}
-                            step={4}
-                            onChange={(value: number) => updateParameter('num_predict', value)}
-                        />
-                    </div>
-                </Space>
-            </Card>
+  // Reset current text and trigger connection.
+  const handleGenerate = () => {
+    setCurrentText("");
+    connect();
+  };
+
+  const updateParameter = (paramName: keyof Params, value: number) => {
+    setParams((prev) => ({
+      ...prev,
+      [paramName]: value,
+    }));
+  };
+
+  return (
+    <Space direction="vertical" style={{ width: "100%" }}>
+      <Card title="Current Response">
+        <div>{currentText}</div>
+        <Button onClick={handleGenerate} disabled={isConnected}>
+          New Generation
+        </Button>
+      </Card>
+      <Card title="Past Responses">
+        {generations.map((gen, idx) => (
+          <Card key={idx} style={{ borderLeft: `4px solid ${gen.color}` }}>
+            {gen.text}
+          </Card>
+        ))}
+      </Card>
+      <Card title="Parameters">
+        <Space direction="vertical">
+          <div>
+            <span>Temperature: </span>
+            <Slider
+              min={0}
+              max={1}
+              step={0.01}
+              value={params.temperature}
+              onChange={(value: number) => updateParameter("temperature", value)}
+            />
+          </div>
+          <div>
+            <span>Top_p: </span>
+            <Slider
+              min={0}
+              max={1}
+              step={0.01}
+              value={params.top_p}
+              onChange={(value: number) => updateParameter("top_p", value)}
+            />
+          </div>
+          <div>
+            <span>Top_k: </span>
+            <Slider
+              min={0}
+              max={100}
+              step={1}
+              value={params.top_k}
+              onChange={(value: number) => updateParameter("top_k", value)}
+            />
+          </div>
+          <div>
+            <span>num_predict: </span>
+            <Slider
+              min={4}
+              max={128}
+              step={4}
+              value={params.num_predict}
+              onChange={(value: number) => updateParameter("num_predict", value)}
+            />
+          </div>
         </Space>
-    );
+      </Card>
+    </Space>
+  );
 };
 
 export default LlamaStream; 
