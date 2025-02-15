@@ -24,6 +24,10 @@ const LlamaStream: React.FC = () => {
             setCurrentResponse(prev => prev + event.data);
         };
 
+        eventSource.addEventListener('done', () => {
+            setCurrentResponse('');
+        });
+
         return () => eventSource.close();
     }, []);
 
