@@ -1,4 +1,4 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, Query
 from fastapi.middleware.cors import CORSMiddleware
 from sse_starlette.sse import EventSourceResponse
 from typing import Dict
@@ -27,26 +27,30 @@ params = {
     'temperature': 0.4,
     'top_p': 0.4,
     'top_k': 30,
-    'num_predict': 48
+    'num_predict': 4
 }
 
 # Add a lock for generation
 generation_lock = asyncio.Lock()
 
 @app.get("/stream")
-async def stream_text():
+async def stream_text(
+    temperature: float = Query(0.4),
+    top_p: float = Query(0.4),
+    top_k: int = Query(30),
+    num_predict: int = Query(48)
+):
     async def event_generator():
-        async with generation_lock:  # Ensure only one generation at a time
+        async with generation_lock:
+            # Use the received parameters instead of the global ones.
             current_context = "Explain in plain language how to reverse a string programmatically."
-            
             try:
-                # Generate stream using llama.cpp
                 for chunk in llm.create_completion(
                     prompt=current_context,
-                    max_tokens=params['num_predict'],
-                    temperature=params['temperature'],
-                    top_p=params['top_p'],
-                    top_k=params['top_k'],
+                    max_tokens=num_predict,
+                    temperature=temperature,
+                    top_p=top_p,
+                    top_k=top_k,
                     stream=True
                 ):
                     if chunk['choices'][0]['finish_reason'] is not None:
@@ -60,15 +64,14 @@ async def stream_text():
                         "event": "message",
                         "data": chunk['choices'][0]['text']
                     }
-                    #await asyncio.sleep(0.1)
                     
             except Exception as e:
-                print(f"Generation error: {str(e)}")  # Added logging
+                print(f"Generation error: {str(e)}")
                 yield {
                     "event": "error",
                     "data": str(e)
                 }
-
+    
     return EventSourceResponse(event_generator())
 
 @app.post("/update-params")

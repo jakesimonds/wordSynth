@@ -14,23 +14,44 @@ interface Params {
 }
 
 // Custom hook to manage streaming generations.
-function useStreamingGenerations() {
+// NOTE: We pass the current params so that the stream connection
+// uses up‑to‑date values (including num_predict) when connecting.
+function useStreamingGenerations(params: Params) {
   const [generations, setGenerations] = useState<Generation[]>([]);
   const [currentText, setCurrentText] = useState("");
   const [isConnected, setIsConnected] = useState(false);
   const eventSourceRef = useRef<EventSource | null>(null);
   const currentTextRef = useRef(currentText);
 
-  // Update the ref whenever currentText changes.
+  // Keep the ref updated with the latest currentText
   useEffect(() => {
     currentTextRef.current = currentText;
   }, [currentText]);
 
   const colors = ["#FF5733", "#33FF57", "#3357FF", "#F833FF", "#33FFF8"];
 
-  const connect = () => {
-    if (eventSourceRef.current) return; // Already connected.
-    const eventSource = new EventSource("http://localhost:8000/stream");
+  // handleGenerate resets current text and connects to the stream,
+  // including the current parameter values in the query string.
+  const handleGenerate = () => {
+    // Reset the current text
+    currentTextRef.current = "";
+    setCurrentText("");
+
+    // Prevent duplicate connections
+    if (eventSourceRef.current) return;
+
+    // Build a query string based on the current parameter values
+    const queryParams = new URLSearchParams({
+      temperature: params.temperature.toString(),
+      top_p: params.top_p.toString(),
+      top_k: params.top_k.toString(),
+      num_predict: params.num_predict.toString(),
+    });
+
+    // Open a connection to the stream endpoint with the query parameters.
+    const eventSource = new EventSource(
+      `http://localhost:8000/stream?${queryParams.toString()}`
+    );
     eventSourceRef.current = eventSource;
     setIsConnected(true);
 
@@ -40,6 +61,7 @@ function useStreamingGenerations() {
     };
 
     eventSource.addEventListener("done", () => {
+      // Save the completed generation in past responses.
       setGenerations((prev) => {
         const newGeneration: Generation = {
           text: currentTextRef.current,
@@ -53,30 +75,28 @@ function useStreamingGenerations() {
     });
   };
 
-  return { generations, currentText, connect, setCurrentText, isConnected };
+  return { generations, currentText, isConnected, handleGenerate };
 }
 
 const LlamaStream = () => {
-  const { generations, currentText, connect, setCurrentText, isConnected } = useStreamingGenerations();
   const [params, setParams] = useState<Params>({
-    temperature: 0.8,
-    top_p: 0.95,
-    top_k: 50,
-    num_predict: 64,
+    temperature: 0.7,
+    top_p: 0.9,
+    top_k: 40,
+    num_predict: 4,
   });
 
-  // Reset current text and trigger connection.
-  const handleGenerate = () => {
-    setCurrentText("");
-    connect();
-  };
-
+  // Update parameters when sliders move.
   const updateParameter = (paramName: keyof Params, value: number) => {
     setParams((prev) => ({
       ...prev,
       [paramName]: value,
     }));
   };
+
+  // Pass the current parameters to the custom hook.
+  const { generations, currentText, isConnected, handleGenerate } =
+    useStreamingGenerations(params);
 
   return (
     <Space direction="vertical" style={{ width: "100%" }}>
@@ -132,7 +152,9 @@ const LlamaStream = () => {
               max={128}
               step={4}
               value={params.num_predict}
-              onChange={(value: number) => updateParameter("num_predict", value)}
+              onChange={(value: number) =>
+                updateParameter("num_predict", value)
+              }
             />
           </div>
         </Space>
