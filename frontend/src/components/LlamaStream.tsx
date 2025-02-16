@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
-import { Slider, Space, Card, Button } from "antd";
+import { Slider, Space, Card, Skeleton } from "antd";
+
 
 interface Generation {
   text: string;
@@ -98,68 +99,117 @@ const LlamaStream = () => {
   const { generations, currentText, isConnected, handleGenerate } =
     useStreamingGenerations(params);
 
+  // Auto-generation: whenever we're not connected (and thus generation has finished),
+  // wait for a global delay (500ms by default) and trigger handleGenerate.
+  useEffect(() => {
+    const pollInterval = 500; // Delay in milliseconds.
+    if (!isConnected) {
+      const timer = setTimeout(() => {
+        handleGenerate();
+      }, pollInterval);
+      return () => clearTimeout(timer);
+    }
+  }, [isConnected, handleGenerate]);
+
   return (
-    <Space direction="vertical" style={{ width: "100%" }}>
-      <Card title="Current Response">
-        <div>{currentText}</div>
-        <Button onClick={handleGenerate} disabled={isConnected}>
-          New Generation
-        </Button>
-      </Card>
-      <Card title="Past Responses">
-        {generations.map((gen, idx) => (
-          <Card key={idx} style={{ borderLeft: `4px solid ${gen.color}` }}>
-            {gen.text}
-          </Card>
-        ))}
-      </Card>
-      <Card title="Parameters">
-        <Space direction="vertical">
-          <div>
-            <span>Temperature: </span>
-            <Slider
-              min={0}
-              max={1}
-              step={0.01}
-              value={params.temperature}
-              onChange={(value: number) => updateParameter("temperature", value)}
-            />
-          </div>
-          <div>
-            <span>Top_p: </span>
-            <Slider
-              min={0}
-              max={1}
-              step={0.01}
-              value={params.top_p}
-              onChange={(value: number) => updateParameter("top_p", value)}
-            />
-          </div>
-          <div>
-            <span>Top_k: </span>
-            <Slider
-              min={0}
-              max={100}
-              step={1}
-              value={params.top_k}
-              onChange={(value: number) => updateParameter("top_k", value)}
-            />
-          </div>
-          <div>
-            <span>num_predict: </span>
-            <Slider
-              min={4}
-              max={128}
-              step={4}
-              value={params.num_predict}
-              onChange={(value: number) =>
-                updateParameter("num_predict", value)
-              }
-            />
-          </div>
-        </Space>
-      </Card>
-    </Space>
+    <div
+      style={{
+        display: "flex",
+        width: "100%",
+        gap: "16px",
+        alignItems: "flex-start",
+      }}
+    >
+      {/* Left column for Parameters */}
+      <div style={{ flex: "0 0 300px" }}>
+        <Card title="Parameters">
+          <Space direction="vertical">
+            <div>
+              <span>Temperature: </span>
+              <Slider
+                min={0}
+                max={1}
+                step={0.01}
+                value={params.temperature}
+                onChange={(value: number) =>
+                  updateParameter("temperature", value)
+                }
+              />
+            </div>
+            <div>
+              <span>Top_p: </span>
+              <Slider
+                min={0}
+                max={1}
+                step={0.01}
+                value={params.top_p}
+                onChange={(value: number) => updateParameter("top_p", value)}
+              />
+            </div>
+            <div>
+              <span>Top_k: </span>
+              <Slider
+                min={0}
+                max={100}
+                step={1}
+                value={params.top_k}
+                onChange={(value: number) => updateParameter("top_k", value)}
+              />
+            </div>
+            <div>
+              <span>num_predict: </span>
+              <Slider
+                min={4}
+                max={128}
+                step={4}
+                value={params.num_predict}
+                onChange={(value: number) =>
+                  updateParameter("num_predict", value)
+                }
+              />
+            </div>
+          </Space>
+        </Card>
+      </div>
+
+      {/* Right column for Generations */}
+      <div style={{ flex: "1" }}>
+        <Card title="Current Response" style={{ minHeight: "120px" }}>
+          <div>{currentText}</div>
+        </Card>
+        <Card title="Past Responses">
+          {(() => {
+            const maxSlots = 10;
+            // Show the 10 most recent responses if there are more than 10.
+            const displayed =
+              generations.length > maxSlots
+                ? generations.slice(-maxSlots)
+                : generations;
+            const fillerCount = maxSlots - displayed.length;
+            return (
+              <>
+                {displayed.map((gen, idx) => (
+                  <Card
+                    key={`real-${idx}`}
+                    style={{
+                      borderLeft: `4px solid ${gen.color}`,
+                      marginBottom: 8,
+                    }}
+                  >
+                    {gen.text}
+                  </Card>
+                ))}
+                {Array.from({ length: fillerCount }).map((_, idx) => (
+                  <Card key={`filler-${idx}`} style={{ marginBottom: 8 }}>
+                    <Skeleton active paragraph={{ rows: 2 }} />
+                  </Card>
+                ))}
+              </>
+            );
+          })()}
+        </Card>
+      </div>
+    </div>
   );
 };
 
