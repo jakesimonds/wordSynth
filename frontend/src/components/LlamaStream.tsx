@@ -17,7 +17,7 @@ interface Params {
 // Custom hook to manage streaming generations.
 // NOTE: We pass the current params so that the stream connection
 // uses up‑to‑date values (including num_predict) when connecting.
-function useStreamingGenerations(params: Params) {
+function useStreamingGenerations(params: Params, isPaused: boolean) {
   const [generations, setGenerations] = useState<Generation[]>([]);
   const [currentText, setCurrentText] = useState("");
   const [isConnected, setIsConnected] = useState(false);
@@ -76,6 +76,17 @@ function useStreamingGenerations(params: Params) {
     });
   };
 
+  // Modify the auto-generation effect
+  useEffect(() => {
+    const pollInterval = 500;
+    if (!isConnected && !isPaused) {
+      const timer = setTimeout(() => {
+        handleGenerate();
+      }, pollInterval);
+      return () => clearTimeout(timer);
+    }
+  }, [isConnected, isPaused, handleGenerate]);
+
   return { generations, currentText, isConnected, handleGenerate };
 }
 
@@ -86,6 +97,18 @@ const LlamaStream = () => {
     top_k: 40,
     num_predict: 4,
   });
+  const [isPaused, setIsPaused] = useState(false);
+
+  // Add this function
+  const togglePause = async () => {
+    try {
+      const response = await fetch('http://localhost:8000/toggle-pause');
+      const data = await response.json();
+      setIsPaused(data.is_paused);
+    } catch (error) {
+      console.error('Failed to toggle pause state:', error);
+    }
+  };
 
   // Update parameters when sliders move.
   const updateParameter = (paramName: keyof Params, value: number) => {
@@ -97,19 +120,21 @@ const LlamaStream = () => {
 
   // Pass the current parameters to the custom hook.
   const { generations, currentText, isConnected, handleGenerate } =
-    useStreamingGenerations(params);
+    useStreamingGenerations(params, isPaused);
+  //const { generations, currentText } = useStreamingGenerations(params, isPaused);
 
   // Auto-generation: whenever we're not connected (and thus generation has finished),
   // wait for a global delay (500ms by default) and trigger handleGenerate.
-  useEffect(() => {
-    const pollInterval = 500; // Delay in milliseconds.
-    if (!isConnected) {
-      const timer = setTimeout(() => {
-        handleGenerate();
-      }, pollInterval);
-      return () => clearTimeout(timer);
-    }
-  }, [isConnected, handleGenerate]);
+  // useEffect(() => {
+  //   const pollInterval = 500; // Delay in milliseconds.
+  //   if (!isConnected) {
+  //     const timer = setTimeout(() => {
+  //       handleGenerate();
+  //     }, pollInterval);
+  //     return () => clearTimeout(timer);
+  //   }
+  // }, [isConnected, handleGenerate]);
+
 
   return (
     <div
@@ -168,6 +193,22 @@ const LlamaStream = () => {
                 }
               />
             </div>
+            <button
+              onClick={togglePause}
+              style={{
+                width: "100%",
+                padding: "12px",
+                marginBottom: "16px",
+                fontSize: "18px",
+                backgroundColor: isPaused ? "#4CAF50" : "#f44336",
+                color: "white",
+                border: "none",
+                borderRadius: "4px",
+                cursor: "pointer"
+              }}
+            >
+              {isPaused ? "Start" : "Pause"}
+            </button>
           </Space>
         </Card>
       </div>
