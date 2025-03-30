@@ -36,6 +36,18 @@ generation_lock = asyncio.Lock()
 # Add near the top with other globals
 PAUSE_STATE = {'is_paused': False}
 
+# Add near the top with other globals
+possible_contexts = [
+    "Explain in plain language how to reverse a string programmatically.",
+    "Describe how to implement a basic sorting algorithm.",
+    "Explain what a hash table is and how it works.",
+    "Describe the concept of recursion with a simple example.",
+    "Explain how to find the largest number in an array."
+]
+
+# Default context
+current_context = possible_contexts[0]
+
 @app.get("/toggle-pause")
 async def toggle_pause():
     PAUSE_STATE['is_paused'] = not PAUSE_STATE['is_paused']
@@ -54,7 +66,6 @@ async def stream_text(
     async def event_generator():
         async with generation_lock:
             # Use the received parameters instead of the global ones.
-            current_context = "Explain in plain language how to reverse a string programmatically."
             try:
                 for chunk in llm.create_completion(
                     prompt=current_context,
@@ -95,4 +106,17 @@ async def update_parameters(new_params: Dict):
 async def inject_tokens(data: dict):
     text = data.get("text", "")
     print(f"Would inject tokens: {text}")  # Just logging for now
-    return {"status": "ok"} 
+    return {"status": "ok"}
+
+# Add a new endpoint to get contexts and set current context
+@app.get("/contexts")
+async def get_contexts():
+    return {"contexts": possible_contexts, "current": current_context}
+
+@app.post("/set-context")
+async def set_context(context_index: int = Query(...)):
+    global current_context
+    if 0 <= context_index < len(possible_contexts):
+        current_context = possible_contexts[context_index]
+        return {"current": current_context}
+    return {"error": "Invalid context index"}, 400 

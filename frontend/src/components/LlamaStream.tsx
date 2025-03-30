@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { Slider, Space, Card, Skeleton } from "antd";
+import { Slider, Space, Card, Skeleton, Select } from "antd";
 
 //test test 
 interface Generation {
@@ -98,6 +98,8 @@ const LlamaStream = () => {
     num_predict: 4,
   });
   const [isPaused, setIsPaused] = useState(false);
+  const [contexts, setContexts] = useState<string[]>([]);
+  const [currentContext, setCurrentContext] = useState<string>("");
 
   // Add this function
   const togglePause = async () => {
@@ -116,6 +118,27 @@ const LlamaStream = () => {
       ...prev,
       [paramName]: value,
     }));
+  };
+
+  // Add this effect to fetch contexts when component mounts
+  useEffect(() => {
+    fetch('http://localhost:8000/contexts')
+      .then(res => res.json())
+      .then(data => {
+        setContexts(data.contexts);
+        setCurrentContext(data.current);
+      });
+  }, []);
+
+  // Add this function to handle context changes
+  const handleContextChange = async (index: number) => {
+    const response = await fetch(`http://localhost:8000/set-context?context_index=${index}`, {
+      method: 'POST'
+    });
+    if (response.ok) {
+      const data = await response.json();
+      setCurrentContext(data.current);
+    }
   };
 
   const { generations, currentText } = useStreamingGenerations(params, isPaused);
@@ -262,6 +285,30 @@ const LlamaStream = () => {
               >
                 {isPaused ? "Un-pause" : "Pause"}
               </button>
+            </Space>
+          </Card>
+          <Card title="Current Prompt">
+            <Space direction="vertical" style={{ width: '100%' }}>
+              <Select
+                value={contexts.indexOf(currentContext)}
+                onChange={handleContextChange}
+                style={{ width: '100%' }}
+              >
+                {contexts.map((context, index) => (
+                  <Select.Option key={index} value={index}>
+                    {context}
+                  </Select.Option>
+                ))}
+              </Select>
+              <div style={{ 
+                marginTop: '8px',
+                padding: '8px',
+                background: '#f5f5f5',
+                borderRadius: '4px',
+                fontSize: '0.9em'
+              }}>
+                {currentContext}
+              </div>
             </Space>
           </Card>
         </div>
