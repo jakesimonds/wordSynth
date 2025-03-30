@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { Slider, Space, Card, Skeleton, Select } from "antd";
+import { Slider, Space, Card, Skeleton, Select, Button } from "antd";
 
 //test test 
 interface Generation {
@@ -221,96 +221,110 @@ const LlamaStream = () => {
       }}>
         {/* Left column for Parameters - fixed width */}
         <div style={{ 
-          flex: "0 0 300px" // Fixed width, no grow/shrink
+          flex: "0 0 300px"
         }}>
-          <Card title="Parameters">
-            <Space direction="vertical">
-              <div>
-                <span>Temperature: </span>
-                <Slider
-                  min={0}
-                  max={1}
-                  step={0.01}
-                  value={params.temperature}
-                  onChange={(value: number) =>
-                    updateParameter("temperature", value)
-                  }
-                />
-              </div>
-              <div>
-                <span>Top_p: </span>
-                <Slider
-                  min={0}
-                  max={1}
-                  step={0.01}
-                  value={params.top_p}
-                  onChange={(value: number) => updateParameter("top_p", value)}
-                />
-              </div>
-              <div>
-                <span>Top_k: </span>
-                <Slider
-                  min={1}
-                  max={100}
-                  step={1}
-                  value={params.top_k}
-                  onChange={(value: number) => updateParameter("top_k", value)}
-                />
-              </div>
-              <div>
-                <span>num_predict: </span>
-                <Slider
-                  min={4}
-                  max={128}
-                  step={4}
-                  value={params.num_predict}
-                  onChange={(value: number) =>
-                    updateParameter("num_predict", value)
-                  }
-                />
-              </div>
-              <button
-                onClick={togglePause}
-                style={{
-                  width: "100%",
-                  padding: "12px",
-                  marginBottom: "16px",
-                  fontSize: "18px",
-                  backgroundColor: isPaused ? "#4CAF50" : "#f44336",
-                  color: "white",
-                  border: "none",
-                  borderRadius: "4px",
-                  cursor: "pointer"
-                }}
-              >
-                {isPaused ? "Un-pause" : "Pause"}
-              </button>
-            </Space>
-          </Card>
-          <Card title="Current Prompt">
-            <Space direction="vertical" style={{ width: '100%' }}>
-              <Select
-                value={contexts.indexOf(currentContext)}
-                onChange={handleContextChange}
-                style={{ width: '100%' }}
-              >
-                {contexts.map((context, index) => (
-                  <Select.Option key={index} value={index}>
-                    {context}
-                  </Select.Option>
-                ))}
-              </Select>
-              <div style={{ 
-                marginTop: '8px',
-                padding: '8px',
-                background: '#f5f5f5',
-                borderRadius: '4px',
-                fontSize: '0.9em'
-              }}>
-                {currentContext}
-              </div>
-            </Space>
-          </Card>
+          <Space direction="vertical" style={{ width: '100%', gap: '16px' }}>
+            <Card title="Current Prompt">
+              <Space direction="vertical" style={{ width: '100%' }}>
+                <Select
+                  value={contexts.indexOf(currentContext)}
+                  onChange={handleContextChange}
+                  style={{ width: '250px' }}
+                >
+                  {contexts.map((context, index) => (
+                    <Select.Option 
+                      key={index} 
+                      value={index}
+                      title={context}
+                    >
+                      {context.length > 30 ? context.slice(0, 30) + '...' : context}
+                    </Select.Option>
+                  ))}
+                </Select>
+                <div style={{ 
+                  marginTop: '8px',
+                  padding: '8px',
+                  background: '#f5f5f5',
+                  borderRadius: '4px',
+                  fontSize: '0.9em',
+                  wordWrap: 'break-word',
+                  whiteSpace: 'pre-wrap',
+                  width: '100%',
+                  maxWidth: '300px',
+                  overflowWrap: 'break-word'
+                }}>
+                  {currentContext}
+                </div>
+              </Space>
+            </Card>
+
+            <Card title="Parameters">
+              <Space direction="vertical" style={{ width: '100%', display: 'flex', alignItems: 'center' }}>
+
+                <div>
+                  <span>Temperature: </span>
+                  <Slider
+                    min={0}
+                    max={1}
+                    step={0.01}
+                    value={params.temperature}
+                    onChange={(value: number) =>
+                      updateParameter("temperature", value)
+                    }
+                  />
+                </div>
+                <div>
+                  <span>Top_p: </span>
+                  <Slider
+                    min={0}
+                    max={1}
+                    step={0.01}
+                    value={params.top_p}
+                    onChange={(value: number) => updateParameter("top_p", value)}
+                  />
+                </div>
+                <div>
+                  <span>Top_k: </span>
+                  <Slider
+                    min={1}
+                    max={100}
+                    step={1}
+                    value={params.top_k}
+                    onChange={(value: number) => updateParameter("top_k", value)}
+                  />
+                </div>
+                <div>
+                  <span>num_predict: </span>
+                  <Slider
+                    min={4}
+                    max={128}
+                    step={4}
+                    value={params.num_predict}
+                    onChange={(value: number) =>
+                      updateParameter("num_predict", value)
+                    }
+                  />
+                </div>
+                <button
+                  onClick={togglePause}
+                  style={{
+                    width: "100%",
+                    padding: "12px",
+                    marginBottom: "26px",
+                    fontSize: "28px",
+                    backgroundColor: isPaused ? "#4CAF50" : "#f44336",
+                    color: "white",
+                    border: "none",
+                    borderRadius: "4px",
+                    cursor: "pointer"
+                  }}
+                >
+                  {isPaused ? "Resume" : "Pause"}
+                </button>
+
+              </Space>
+            </Card>
+          </Space>
         </div>
 
         {/* Right column for Responses - takes remaining width */}
@@ -344,16 +358,14 @@ const LlamaStream = () => {
           >
             <div style={{
               display: "flex",
-              flexDirection: "column-reverse",
+              flexDirection: "column",
               gap: "8px"
             }}>
               {(() => {
-                const maxSlots = 10;
-                // Show the 10 most recent responses if there are more than 10.
-                const displayed =
-                  generations.length > maxSlots
-                    ? generations.slice(-maxSlots)
-                    : generations;
+                const maxSlots = 5;
+                const displayed = [...(generations.length > maxSlots
+                  ? generations.slice(-maxSlots)
+                  : generations)].reverse();
                 const fillerCount = maxSlots - displayed.length;
                 return (
                   <>
