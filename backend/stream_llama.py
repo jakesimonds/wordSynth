@@ -13,7 +13,8 @@ PARAMS = {
     'top_p': {'value': 0.4, 'step': 0.1, 'min': 0.0, 'max': 1.0, 'up': 'e', 'down': 'd'},
     'top_k': {'value': 30, 'step': 5, 'min': 1, 'max': 100, 'up': 'r', 'down': 'f'},
     'num_ctx': {'value': 1024, 'step': 128, 'min': 128, 'max': 4096, 'up': 't', 'down': 'g'},
-    'num_predict': {'value': 48, 'step': 128, 'min': 128, 'max': 4096, 'up': 'y', 'down': 'h'}
+    'num_predict': {'value': 48, 'step': 128, 'min': 128, 'max': 4096, 'up': 'y', 'down': 'h'},
+    'repeat_penalty': {'value': 1.1, 'step': 0.05, 'min': 1.0, 'max': 2.0, 'up': 'u', 'down': 'j'},
 }
 
 def signal_handler(sig, frame):
@@ -77,7 +78,8 @@ def stream_continuously(prompt):
                     'top_p': PARAMS['top_p']['value'],
                     'top_k': int(PARAMS['top_k']['value']),
                     'num_ctx': int(PARAMS['num_ctx']['value']),
-                    'num_predict': int(PARAMS['num_predict']['value'])
+                    'num_predict': int(PARAMS['num_predict']['value']),
+                    'repeat_penalty': PARAMS['repeat_penalty']['value'],
                 }
             )
             

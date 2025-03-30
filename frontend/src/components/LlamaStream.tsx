@@ -12,6 +12,7 @@ interface Params {
   top_p: number;
   top_k: number;
   num_predict: number;
+  repeat_penalty: number;
 }
 
 // Custom hook to manage streaming generations.
@@ -47,6 +48,7 @@ function useStreamingGenerations(params: Params, isPaused: boolean) {
       top_p: params.top_p.toString(),
       top_k: params.top_k.toString(),
       num_predict: params.num_predict.toString(),
+      repeat_penalty: params.repeat_penalty.toString(),
     });
 
     // Open a connection to the stream endpoint with the query parameters.
@@ -96,6 +98,7 @@ const LlamaStream = () => {
     top_p: 0.9,
     top_k: 40,
     num_predict: 4,
+    repeat_penalty: 1.1,
   });
   const [isPaused, setIsPaused] = useState(false);
   const [contexts, setContexts] = useState<string[]>([]);
@@ -302,6 +305,18 @@ const LlamaStream = () => {
                     value={params.num_predict}
                     onChange={(value: number) =>
                       updateParameter("num_predict", value)
+                    }
+                  />
+                </div>
+                <div>
+                  <span>Repeat Penalty: </span>
+                  <Slider
+                    min={1.0}
+                    max={2.0}
+                    step={0.05}
+                    value={params.repeat_penalty}
+                    onChange={(value: number) =>
+                      updateParameter("repeat_penalty", value)
                     }
                   />
                 </div>

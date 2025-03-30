@@ -27,7 +27,8 @@ params = {
     'temperature': 0.4,
     'top_p': 0.4,
     'top_k': 30,
-    'num_predict': 4
+    'num_predict': 4,
+    'repeat_penalty': 1.1
 }
 
 # Add a lock for generation
@@ -38,7 +39,7 @@ PAUSE_STATE = {'is_paused': False}
 
 # Add near the top with other globals
 possible_contexts = [
-    "Explain in plain language how to reverse a string programmatically.",
+    "Repeat the word hello over and over again 100 times.",
     "Describe how to implement a basic sorting algorithm.",
     "Explain what a hash table is and how it works.",
     "Describe the concept of recursion with a simple example.",
@@ -58,7 +59,8 @@ async def stream_text(
     temperature: float = Query(0.4),
     top_p: float = Query(0.4),
     top_k: int = Query(30),
-    num_predict: int = Query(48)
+    num_predict: int = Query(48),
+    repeat_penalty: float = Query(1.1)
 ):
     if PAUSE_STATE['is_paused']:
         return Response(status_code=204)  # 204 No Content
@@ -73,6 +75,7 @@ async def stream_text(
                     temperature=temperature,
                     top_p=top_p,
                     top_k=top_k,
+                    repeat_penalty=repeat_penalty,
                     stream=True
                 ):
                     if chunk['choices'][0]['finish_reason'] is not None:
