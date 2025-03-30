@@ -10,3 +10,18 @@ __pycache__/
 
 # Environment
 .env
+
+# Virtual environment
+venv/lib/
+venv/include/
+venv/bin/
+venv/Scripts/
+venv/Lib/
+venv/pyvenv.cfg
+
+# Python cache
+__pycache__/
+*.py[cod]
+
+# Node.js (since I see you have package.json files)
+node_modules/

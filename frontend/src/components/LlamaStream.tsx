@@ -149,7 +149,7 @@ const LlamaStream = () => {
             <div>
               <span>Top_k: </span>
               <Slider
-                min={0}
+                min={1}
                 max={100}
                 step={1}
                 value={params.top_k}

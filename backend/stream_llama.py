@@ -97,20 +97,21 @@ def stream_continuously(prompt):
         print(f"\nAn error occurred: {e}")
         sys.exit(1)
 
-class LlamaStreamer:
-    def __init__(self, temperature=0.7, top_p=0.9):
-        self.temperature = temperature
-        self.top_p = top_p
-        # Initialize other parameters and your llama model
+# class LlamaStreamer:
+#     def __init__(self, temperature=0.7, top_p=0.9):
+#         self.temperature = temperature
+#         self.top_p = top_p
+#         self.top_k = top_k
+#         # Initialize other parameters and your llama model
 
-    async def stream(self):
-        # Convert your existing streaming logic to be async
-        # You might need to modify how you interact with llama
-        # to make it work with async/await
-        # This is a placeholder example:
-        for chunk in your_existing_stream_logic():
-            yield chunk
-            await asyncio.sleep(0.1)  # Add small delays between chunks
+#     async def stream(self):
+#         # Convert your existing streaming logic to be async
+#         # You might need to modify how you interact with llama
+#         # to make it work with async/await
+#         # This is a placeholder example:
+#         for chunk in your_existing_stream_logic():
+#             yield chunk
+#             await asyncio.sleep(0.1)  # Add small delays between chunks
 
 if __name__ == "__main__":
     if len(sys.argv) < 2:
