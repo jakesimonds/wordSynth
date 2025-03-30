@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { Slider, Space, Card, Skeleton } from "antd";
 
-
+//test test 
 interface Generation {
   text: string;
   color: string;
