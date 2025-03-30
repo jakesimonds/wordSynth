@@ -118,22 +118,7 @@ const LlamaStream = () => {
     }));
   };
 
-  // Pass the current parameters to the custom hook.
-  const { generations, currentText, isConnected, handleGenerate } =
-    useStreamingGenerations(params, isPaused);
-  //const { generations, currentText } = useStreamingGenerations(params, isPaused);
-
-  // Auto-generation: whenever we're not connected (and thus generation has finished),
-  // wait for a global delay (500ms by default) and trigger handleGenerate.
-  // useEffect(() => {
-  //   const pollInterval = 500; // Delay in milliseconds.
-  //   if (!isConnected) {
-  //     const timer = setTimeout(() => {
-  //       handleGenerate();
-  //     }, pollInterval);
-  //     return () => clearTimeout(timer);
-  //   }
-  // }, [isConnected, handleGenerate]);
+  const { generations, currentText } = useStreamingGenerations(params, isPaused);
 
 
   return (
