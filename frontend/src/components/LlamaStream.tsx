@@ -122,118 +122,216 @@ const LlamaStream = () => {
 
 
   return (
-    <div
-      style={{
-        display: "flex",
+    <div style={{ display: "flex", flexDirection: "column", height: "100vh" }}>
+      {/* Add this style tag for hover effects */}
+      <style>
+        {`
+          .header-link {
+            color: #b19dd8;
+            text-decoration: none;
+            transition: color 0.2s;
+          }
+          .header-link:hover {
+            color: #e100ff;
+          }
+        `}
+      </style>
+
+      {/* Header Section */}
+      <div style={{
         width: "100%",
-        gap: "16px",
-        alignItems: "flex-start",
-      }}
-    >
-      {/* Left column for Parameters */}
-      <div style={{ flex: "0 0 300px" }}>
-        <Card title="Parameters">
-          <Space direction="vertical">
-            <div>
-              <span>Temperature: </span>
-              <Slider
-                min={0}
-                max={1}
-                step={0.01}
-                value={params.temperature}
-                onChange={(value: number) =>
-                  updateParameter("temperature", value)
-                }
-              />
-            </div>
-            <div>
-              <span>Top_p: </span>
-              <Slider
-                min={0}
-                max={1}
-                step={0.01}
-                value={params.top_p}
-                onChange={(value: number) => updateParameter("top_p", value)}
-              />
-            </div>
-            <div>
-              <span>Top_k: </span>
-              <Slider
-                min={1}
-                max={100}
-                step={1}
-                value={params.top_k}
-                onChange={(value: number) => updateParameter("top_k", value)}
-              />
-            </div>
-            <div>
-              <span>num_predict: </span>
-              <Slider
-                min={4}
-                max={128}
-                step={4}
-                value={params.num_predict}
-                onChange={(value: number) =>
-                  updateParameter("num_predict", value)
-                }
-              />
-            </div>
-            <button
-              onClick={togglePause}
-              style={{
-                width: "100%",
-                padding: "12px",
-                marginBottom: "16px",
-                fontSize: "18px",
-                backgroundColor: isPaused ? "#4CAF50" : "#f44336",
-                color: "white",
-                border: "none",
-                borderRadius: "4px",
-                cursor: "pointer"
-              }}
-            >
-              {isPaused ? "Start" : "Pause"}
-            </button>
-          </Space>
-        </Card>
+        padding: "1rem",
+        background: "linear-gradient(45deg, #2b1331, #000000)",
+        marginBottom: "1rem",
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+        gap: "0.5rem"
+      }}>
+        {/* Title */}
+        <h1 style={{
+          margin: 0,
+          fontSize: "3.5rem",
+          fontFamily: "'Press Start 2P', system-ui",
+          background: "linear-gradient(45deg, #e100ff, #7700ff)",
+          WebkitBackgroundClip: "text",
+          WebkitTextFillColor: "transparent",
+          textShadow: "0 0 20px rgba(231,0,255,0.5)",
+          letterSpacing: "0.2em",
+          textAlign: "center"
+        }}>
+          WORD SYNTH
+        </h1>
+        
+        {/* Updated links */}
+        <div style={{
+          display: "flex",
+          gap: "2rem",
+          fontSize: "0.9rem"
+        }}>
+          <a 
+            href="https://github.com/jakesimonds/wordSynth" 
+            target="_blank" 
+            rel="noopener noreferrer"
+            className="header-link"
+          >
+            github
+          </a>
+          <a 
+            href="https://jakesimonds.github.io/" 
+            target="_blank" 
+            rel="noopener noreferrer"
+            className="header-link"
+          >
+            jakesimonds
+          </a>
+        </div>
       </div>
 
-      {/* Right column for Generations */}
-      <div style={{ flex: "1" }}>
-        <Card title="Current Response" style={{ minHeight: "120px" }}>
-          <div>{currentText}</div>
-        </Card>
-        <Card title="Past Responses">
-          {(() => {
-            const maxSlots = 10;
-            // Show the 10 most recent responses if there are more than 10.
-            const displayed =
-              generations.length > maxSlots
-                ? generations.slice(-maxSlots)
-                : generations;
-            const fillerCount = maxSlots - displayed.length;
-            return (
-              <>
-                {displayed.map((gen, idx) => (
-                  <Card
-                    key={`real-${idx}`}
-                    style={{
-                      borderLeft: `4px solid ${gen.color}`,
-                      marginBottom: 8,
-                    }}
-                  >
-                    {gen.text}
-                  </Card>
-                ))}
-                {Array.from({ length: fillerCount }).map((_, idx) => (
-                  <Card key={`filler-${idx}`} style={{ marginBottom: 8 }}>
-                    <Skeleton active paragraph={{ rows: 2 }} />
-                  </Card>
-                ))}
-              </>
-            );
-          })()}
-        </Card>
+      {/* Your existing main content div */}
+      <div style={{
+        display: "flex",
+        width: "100%",
+        flex: 1,
+        padding: "1rem",
+        gap: "16px",
+      }}>
+        {/* Left column for Parameters - fixed width */}
+        <div style={{ 
+          flex: "0 0 300px" // Fixed width, no grow/shrink
+        }}>
+          <Card title="Parameters">
+            <Space direction="vertical">
+              <div>
+                <span>Temperature: </span>
+                <Slider
+                  min={0}
+                  max={1}
+                  step={0.01}
+                  value={params.temperature}
+                  onChange={(value: number) =>
+                    updateParameter("temperature", value)
+                  }
+                />
+              </div>
+              <div>
+                <span>Top_p: </span>
+                <Slider
+                  min={0}
+                  max={1}
+                  step={0.01}
+                  value={params.top_p}
+                  onChange={(value: number) => updateParameter("top_p", value)}
+                />
+              </div>
+              <div>
+                <span>Top_k: </span>
+                <Slider
+                  min={1}
+                  max={100}
+                  step={1}
+                  value={params.top_k}
+                  onChange={(value: number) => updateParameter("top_k", value)}
+                />
+              </div>
+              <div>
+                <span>num_predict: </span>
+                <Slider
+                  min={4}
+                  max={128}
+                  step={4}
+                  value={params.num_predict}
+                  onChange={(value: number) =>
+                    updateParameter("num_predict", value)
+                  }
+                />
+              </div>
+              <button
+                onClick={togglePause}
+                style={{
+                  width: "100%",
+                  padding: "12px",
+                  marginBottom: "16px",
+                  fontSize: "18px",
+                  backgroundColor: isPaused ? "#4CAF50" : "#f44336",
+                  color: "white",
+                  border: "none",
+                  borderRadius: "4px",
+                  cursor: "pointer"
+                }}
+              >
+                {isPaused ? "Un-pause" : "Pause"}
+              </button>
+            </Space>
+          </Card>
+        </div>
+
+        {/* Right column for Responses - takes remaining width */}
+        <div style={{
+          flex: 1,
+          display: "flex",
+          flexDirection: "column",
+          gap: "16px",
+          height: "100%", // Full height of parent
+          minHeight: 0, // Important for Firefox
+        }}>
+          {/* Current Response - fixed height */}
+          <Card 
+            title="Current Response" 
+            style={{ 
+              height: "120px",
+              overflow: "auto"
+            }}
+          >
+            <div>{currentText}</div>
+          </Card>
+
+          {/* Past Responses - takes remaining height, scrolls */}
+          <Card 
+            title="Past Responses"
+            style={{
+              flex: 1,
+              overflow: "auto",
+              minHeight: 0
+            }}
+          >
+            <div style={{
+              display: "flex",
+              flexDirection: "column-reverse",
+              gap: "8px"
+            }}>
+              {(() => {
+                const maxSlots = 10;
+                // Show the 10 most recent responses if there are more than 10.
+                const displayed =
+                  generations.length > maxSlots
+                    ? generations.slice(-maxSlots)
+                    : generations;
+                const fillerCount = maxSlots - displayed.length;
+                return (
+                  <>
+                    {displayed.map((gen, idx) => (
+                      <Card
+                        key={`real-${idx}`}
+                        style={{
+                          borderLeft: `4px solid ${gen.color}`,
+                          marginBottom: 8,
+                        }}
+                      >
+                        {gen.text}
+                      </Card>
+                    ))}
+                    {Array.from({ length: fillerCount }).map((_, idx) => (
+                      <Card key={`filler-${idx}`} style={{ marginBottom: 8 }}>
+                        <Skeleton active paragraph={{ rows: 2 }} />
+                      </Card>
+                    ))}
+                  </>
+                );
+              })()}
+            </div>
+          </Card>
+        </div>
       </div>
     </div>
   );
