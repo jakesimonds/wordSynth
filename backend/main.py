@@ -20,7 +20,8 @@ app.add_middleware(
 llm = Llama(
     model_path="../models/Llama-3.2-1B-Instruct-Q3_K_L.gguf",
     n_ctx=2048,
-    n_threads=4
+    n_threads=4, # see systemQuery/multi.py for physical and logical cores
+    #seed=33 # unimpressive results 
 )
 
 params = {
@@ -28,7 +29,9 @@ params = {
     'top_p': 0.4,
     'top_k': 30,
     'num_predict': 4,
-    'repeat_penalty': 1.1
+    'repeat_penalty': 1.1,
+    'presence_penalty': 0.0,
+    'frequency_penalty': 0.0,
 }
 
 # Add a lock for generation
@@ -60,14 +63,18 @@ async def stream_text(
     top_p: float = Query(0.4),
     top_k: int = Query(30),
     num_predict: int = Query(48),
-    repeat_penalty: float = Query(1.1)
+    repeat_penalty: float = Query(1.1),
+    presence_penalty: float = Query(0.0),
+    frequency_penalty: float = Query(0.0),
 ):
     if PAUSE_STATE['is_paused']:
         return Response(status_code=204)  # 204 No Content
 
+
+
+
     async def event_generator():
         async with generation_lock:
-            # Use the received parameters instead of the global ones.
             try:
                 for chunk in llm.create_completion(
                     prompt=current_context,
@@ -76,6 +83,8 @@ async def stream_text(
                     top_p=top_p,
                     top_k=top_k,
                     repeat_penalty=repeat_penalty,
+                    presence_penalty=presence_penalty,
+                    frequency_penalty=frequency_penalty,
                     stream=True
                 ):
                     if chunk['choices'][0]['finish_reason'] is not None:

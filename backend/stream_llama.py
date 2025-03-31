@@ -15,6 +15,8 @@ PARAMS = {
     'num_ctx': {'value': 1024, 'step': 128, 'min': 128, 'max': 4096, 'up': 't', 'down': 'g'},
     'num_predict': {'value': 48, 'step': 128, 'min': 128, 'max': 4096, 'up': 'y', 'down': 'h'},
     'repeat_penalty': {'value': 1.1, 'step': 0.05, 'min': 1.0, 'max': 2.0, 'up': 'u', 'down': 'j'},
+    'presence_penalty': {'value': 0.0, 'step': 0.05, 'min': 0.0, 'max': 1.0, 'up': 'i', 'down': 'k'},
+    'frequency_penalty': {'value': 0.0, 'step': 0.05, 'min': 0.0, 'max': 1.0, 'up': 'o', 'down': 'l'},
 }
 
 def signal_handler(sig, frame):
@@ -80,6 +82,8 @@ def stream_continuously(prompt):
                     'num_ctx': int(PARAMS['num_ctx']['value']),
                     'num_predict': int(PARAMS['num_predict']['value']),
                     'repeat_penalty': PARAMS['repeat_penalty']['value'],
+                    'presence_penalty': PARAMS['presence_penalty']['value'],
+                    'frequency_penalty': PARAMS['frequency_penalty']['value'],
                 }
             )
             

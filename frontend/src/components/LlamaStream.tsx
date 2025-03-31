@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { Slider, Space, Card, Skeleton, Select, Button } from "antd";
+import { Slider, Space, Card, Skeleton, Select, Button, Switch } from "antd";
 
 //test test 
 interface Generation {
@@ -13,6 +13,8 @@ interface Params {
   top_k: number;
   num_predict: number;
   repeat_penalty: number;
+  presence_penalty: number;
+  frequency_penalty: number;
 }
 
 // Custom hook to manage streaming generations.
@@ -49,6 +51,8 @@ function useStreamingGenerations(params: Params, isPaused: boolean) {
       top_k: params.top_k.toString(),
       num_predict: params.num_predict.toString(),
       repeat_penalty: params.repeat_penalty.toString(),
+      presence_penalty: params.presence_penalty.toString(),
+      frequency_penalty: params.frequency_penalty.toString(),
     });
 
     // Open a connection to the stream endpoint with the query parameters.
@@ -99,6 +103,8 @@ const LlamaStream = () => {
     top_k: 40,
     num_predict: 4,
     repeat_penalty: 1.1,
+    presence_penalty: 0.0,
+    frequency_penalty: 0.0,
   });
   const [isPaused, setIsPaused] = useState(false);
   const [contexts, setContexts] = useState<string[]>([]);
@@ -317,6 +323,30 @@ const LlamaStream = () => {
                     value={params.repeat_penalty}
                     onChange={(value: number) =>
                       updateParameter("repeat_penalty", value)
+                    }
+                  />
+                </div>
+                <div>
+                  <span>Presence Penalty: </span>
+                  <Slider
+                    min={0.0}
+                    max={1.0}
+                    step={0.05}
+                    value={params.presence_penalty}
+                    onChange={(value: number) =>
+                      updateParameter("presence_penalty", value)
+                    }
+                  />
+                </div>
+                <div>
+                  <span>Frequency Penalty: </span>
+                  <Slider
+                    min={0.0}
+                    max={1.0}
+                    step={0.05}
+                    value={params.frequency_penalty}
+                    onChange={(value: number) =>
+                      updateParameter("frequency_penalty", value)
                     }
                   />
                 </div>
