@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { Slider, Space, Card, Skeleton, Select, Button, Switch } from "antd";
+import { Slider, Space, Card, Skeleton, Select } from "antd";
 
 //test test 
 interface Generation {
