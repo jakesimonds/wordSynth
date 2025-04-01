@@ -3,6 +3,7 @@ node_modules/
 
 # Model files
 models/*
+!models/.gitkeep
 
 # Python cache
 __pycache__/
