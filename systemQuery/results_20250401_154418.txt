@@ -1,0 +1,344 @@
+Mirostat Test Results - 20250401_154418
+Prompt: Explain what a hash table is
+
+
+================================================================================
+TEST RUN - Mode: 0
+================================================================================
+
+Parameters:
+temperature: 0.4
+num_predict: 48
+n_threads: 4
+
+Prompt: Explain what a hash table is
+
+Response:
+ and how it is used in programming.
+A hash table is a data structure that stores a collection of key-value pairs in a way that allows for efficient retrieval of values by their keys. It is a fundamental data structure in computer science, and
+
+Generation complete!
+================================================================================
+
+
+================================================================================
+TEST RUN - Mode: 0
+================================================================================
+
+Parameters:
+temperature: 0.4
+num_predict: 48
+n_threads: 4
+
+Prompt: Explain what a hash table is
+
+Response:
+ and how it is used in programming.
+A hash table is a data structure that stores a collection of key-value pairs in a way that allows for efficient retrieval of values by their keys. It is a fundamental data structure in computer science, and
+
+Generation complete!
+================================================================================
+
+
+================================================================================
+TEST RUN - Mode: 0
+================================================================================
+
+Parameters:
+temperature: 0.4
+num_predict: 48
+n_threads: 4
+
+Prompt: Explain what a hash table is
+
+Response:
+ and how it is used in programming.
+A hash table is a data structure that stores a collection of key-value pairs in a way that allows for efficient retrieval of values by their keys. It is a fundamental data structure in computer science, and
+
+Generation complete!
+================================================================================
+
+
+================================================================================
+TEST RUN - Mode: 0
+================================================================================
+
+Parameters:
+temperature: 0.4
+num_predict: 48
+n_threads: 4
+
+Prompt: Explain what a hash table is
+
+Response:
+ and how it is used in programming.
+A hash table is a data structure that stores a collection of key-value pairs in a way that allows for efficient retrieval of values by their keys. It is a fundamental data structure in computer science, and
+
+Generation complete!
+================================================================================
+
+
+================================================================================
+TEST RUN - Mode: 0
+================================================================================
+
+Parameters:
+temperature: 0.4
+num_predict: 48
+n_threads: 4
+
+Prompt: Explain what a hash table is
+
+Response:
+ and how it is used in programming.
+A hash table is a data structure that stores a collection of key-value pairs in a way that allows for efficient retrieval of values by their keys. It is a fundamental data structure in computer science, and
+
+Generation complete!
+================================================================================
+
+
+================================================================================
+TEST RUN - Mode: 1
+Tau: 3.0, Eta: 0.10
+================================================================================
+
+Parameters:
+temperature: 0.4
+mirostat_mode: 1
+mirostat_tau: 3.0
+mirostat_eta: 0.1
+num_predict: 48
+n_threads: 4
+
+Prompt: Explain what a hash table is
+
+Response:
+.
+A hash table is a data structure that stores elements in keys, which are used to access the elements. Each element is assigned a unique key, which can be used to quickly find it in the data structure.
+
+Here are some examples to
+
+Generation complete!
+================================================================================
+
+
+================================================================================
+TEST RUN - Mode: 1
+Tau: 4.0, Eta: 0.10
+================================================================================
+
+Parameters:
+temperature: 0.4
+mirostat_mode: 1
+mirostat_tau: 4.0
+mirostat_eta: 0.1
+num_predict: 48
+n_threads: 4
+
+Prompt: Explain what a hash table is
+
+Response:
+ a data structure.
+A hash table is a data structure that stores data in the form of a collection of key-value pairs, where each key is unique and associated with a specific value. In other words, a hash table allows you to map
+
+Generation complete!
+================================================================================
+
+
+================================================================================
+TEST RUN - Mode: 1
+Tau: 5.0, Eta: 0.10
+================================================================================
+
+Parameters:
+temperature: 0.4
+mirostat_mode: 1
+mirostat_tau: 5.0
+mirostat_eta: 0.1
+num_predict: 48
+n_threads: 4
+
+Prompt: Explain what a hash table is
+
+Response:
+ used for in the context of computer science and programming, and what are the benefits and drawbacks of using a hash table.
+
+## Step 1: Introduction to Hash Tables
+A hash table, also known as a hash map, is a data
+
+Generation complete!
+================================================================================
+
+
+================================================================================
+TEST RUN - Mode: 1
+Tau: 5.0, Eta: 0.20
+================================================================================
+
+Parameters:
+temperature: 0.4
+mirostat_mode: 1
+mirostat_tau: 5.0
+mirostat_eta: 0.2
+num_predict: 48
+n_threads: 4
+
+Prompt: Explain what a hash table is
+
+Response:
+ used for in the context of computer science and programming, and what are the benefits and drawbacks of using a hash table.
+
+## Step 1: Introduction to Hash Tables
+A hash table, also known as a hash map, is a data
+
+Generation complete!
+================================================================================
+
+
+================================================================================
+TEST RUN - Mode: 1
+Tau: 5.0, Eta: 0.30
+================================================================================
+
+Parameters:
+temperature: 0.4
+mirostat_mode: 1
+mirostat_tau: 5.0
+mirostat_eta: 0.3
+num_predict: 48
+n_threads: 4
+
+Prompt: Explain what a hash table is
+
+Response:
+ used for in the context of computer science and programming, and what are the benefits and drawbacks of using a hash table.
+
+## Step 1: Introduction to Hash Tables
+A hash table, also known as a hash map, is a data
+
+Generation complete!
+================================================================================
+
+
+================================================================================
+TEST RUN - Mode: 2
+Tau: 3.0, Eta: 0.10
+================================================================================
+
+Parameters:
+temperature: 0.4
+mirostat_mode: 2
+mirostat_tau: 3.0
+mirostat_eta: 0.1
+num_predict: 48
+n_threads: 4
+
+Prompt: Explain what a hash table is
+
+Response:
+.
+A hash table is a data structure that stores elements in keys, which are used to access the elements. Each element is assigned a unique key, which can be used to quickly find it in the data structure.
+
+Here are some examples to
+
+Generation complete!
+================================================================================
+
+
+================================================================================
+TEST RUN - Mode: 2
+Tau: 4.0, Eta: 0.10
+================================================================================
+
+Parameters:
+temperature: 0.4
+mirostat_mode: 2
+mirostat_tau: 4.0
+mirostat_eta: 0.1
+num_predict: 48
+n_threads: 4
+
+Prompt: Explain what a hash table is
+
+Response:
+ a data structure.
+A hash table is a data structure that stores data in the form of a collection of key-value pairs, where each key is unique and associated with a specific value. In other words, a hash table allows you to map
+
+Generation complete!
+================================================================================
+
+
+================================================================================
+TEST RUN - Mode: 2
+Tau: 5.0, Eta: 0.10
+================================================================================
+
+Parameters:
+temperature: 0.4
+mirostat_mode: 2
+mirostat_tau: 5.0
+mirostat_eta: 0.1
+num_predict: 48
+n_threads: 4
+
+Prompt: Explain what a hash table is
+
+Response:
+ used for in the context of computer science and programming, and what are the benefits and drawbacks of using a hash table.
+
+## Step 1: Introduction to Hash Tables
+A hash table, also known as a hash map, is a data
+
+Generation complete!
+================================================================================
+
+
+================================================================================
+TEST RUN - Mode: 2
+Tau: 5.0, Eta: 0.20
+================================================================================
+
+Parameters:
+temperature: 0.4
+mirostat_mode: 2
+mirostat_tau: 5.0
+mirostat_eta: 0.2
+num_predict: 48
+n_threads: 4
+
+Prompt: Explain what a hash table is
+
+Response:
+ used for in the context of computer science and programming, and what are the benefits and drawbacks of using a hash table.
+
+## Step 1: Introduction to Hash Tables
+A hash table, also known as a hash map, is a data
+
+Generation complete!
+================================================================================
+
+
+================================================================================
+TEST RUN - Mode: 2
+Tau: 5.0, Eta: 0.30
+================================================================================
+
+Parameters:
+temperature: 0.4
+mirostat_mode: 2
+mirostat_tau: 5.0
+mirostat_eta: 0.3
+num_predict: 48
+n_threads: 4
+
+Prompt: Explain what a hash table is
+
+Response:
+ used for in the context of computer science and programming, and what are the benefits and drawbacks of using a hash table.
+
+## Step 1: Introduction to Hash Tables
+A hash table, also known as a hash map, is a data
+
+Generation complete!
+================================================================================
+
