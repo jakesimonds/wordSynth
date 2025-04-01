@@ -15,6 +15,9 @@ interface Params {
   repeat_penalty: number;
   presence_penalty: number;
   frequency_penalty: number;
+  mirostat_mode: number;  // 0 = disabled, 1 = Mirostat, 2 = Mirostat 2.0
+  mirostat_tau: number;   // Target entropy
+  mirostat_eta: number;   // Learning rate
 }
 
 // Custom hook to manage streaming generations.
@@ -53,6 +56,9 @@ function useStreamingGenerations(params: Params, isPaused: boolean) {
       repeat_penalty: params.repeat_penalty.toString(),
       presence_penalty: params.presence_penalty.toString(),
       frequency_penalty: params.frequency_penalty.toString(),
+      mirostat_mode: params.mirostat_mode.toString(),
+      mirostat_tau: params.mirostat_tau.toString(),
+      mirostat_eta: params.mirostat_eta.toString(),
     });
 
     // Open a connection to the stream endpoint with the query parameters.
@@ -105,6 +111,9 @@ const LlamaStream = () => {
     repeat_penalty: 1.1,
     presence_penalty: 0.0,
     frequency_penalty: 0.0,
+    mirostat_mode: 0,     // Default to disabled
+    mirostat_tau: 5.0,    // Default tau value
+    mirostat_eta: 0.1,    // Default eta value
   });
   const [isPaused, setIsPaused] = useState(false);
   const [contexts, setContexts] = useState<string[]>([]);
@@ -152,6 +161,8 @@ const LlamaStream = () => {
 
   const { generations, currentText } = useStreamingGenerations(params, isPaused);
 
+  // Check if Mirostat is enabled
+  const isMirostatEnabled = params.mirostat_mode > 0;
 
   return (
     <div style={{ display: "flex", flexDirection: "column", height: "100vh" }}>
@@ -269,7 +280,6 @@ const LlamaStream = () => {
 
             <Card title="Parameters">
               <Space direction="vertical" style={{ width: '100%', display: 'flex', alignItems: 'center' }}>
-
                 <div>
                   <span>Temperature: </span>
                   <Slider
@@ -282,6 +292,48 @@ const LlamaStream = () => {
                     }
                   />
                 </div>
+                
+                {/* Mirostat Mode Selector */}
+                <div>
+                  <span>Mirostat Mode: </span>
+                  <Select
+                    value={params.mirostat_mode}
+                    onChange={(value: number) => updateParameter("mirostat_mode", value)}
+                    style={{ width: '100%' }}
+                  >
+                    <Select.Option value={0}>Disabled</Select.Option>
+                    <Select.Option value={1}>Mirostat</Select.Option>
+                    <Select.Option value={2}>Mirostat 2.0</Select.Option>
+                  </Select>
+                </div>
+                
+                {/* Mirostat Parameters - only shown when Mirostat is enabled */}
+                {isMirostatEnabled && (
+                  <>
+                    <div>
+                      <span>Mirostat Tau: </span>
+                      <Slider
+                        min={1.0}
+                        max={10.0}
+                        step={0.1}
+                        value={params.mirostat_tau}
+                        onChange={(value: number) => updateParameter("mirostat_tau", value)}
+                      />
+                    </div>
+                    <div>
+                      <span>Mirostat Eta: </span>
+                      <Slider
+                        min={0.001}
+                        max={1.0}
+                        step={0.001}
+                        value={params.mirostat_eta}
+                        onChange={(value: number) => updateParameter("mirostat_eta", value)}
+                      />
+                    </div>
+                  </>
+                )}
+                
+                {/* top_p and top_k are disabled when Mirostat is enabled */}
                 <div>
                   <span>Top_p: </span>
                   <Slider
@@ -290,6 +342,7 @@ const LlamaStream = () => {
                     step={0.01}
                     value={params.top_p}
                     onChange={(value: number) => updateParameter("top_p", value)}
+                    disabled={isMirostatEnabled}
                   />
                 </div>
                 <div>
@@ -300,6 +353,7 @@ const LlamaStream = () => {
                     step={1}
                     value={params.top_k}
                     onChange={(value: number) => updateParameter("top_k", value)}
+                    disabled={isMirostatEnabled}
                   />
                 </div>
                 <div>
@@ -366,7 +420,6 @@ const LlamaStream = () => {
                 >
                   {isPaused ? "Resume" : "Pause"}
                 </button>
-
               </Space>
             </Card>
           </Space>

@@ -32,6 +32,9 @@ params = {
     'repeat_penalty': 1.1,
     'presence_penalty': 0.0,
     'frequency_penalty': 0.0,
+    'mirostat_mode': 0,     # Default to disabled
+    'mirostat_tau': 5.0,    # Default tau value
+    'mirostat_eta': 0.1,    # Default eta value
 }
 
 # Add a lock for generation
@@ -66,27 +69,43 @@ async def stream_text(
     repeat_penalty: float = Query(1.1),
     presence_penalty: float = Query(0.0),
     frequency_penalty: float = Query(0.0),
+    mirostat_mode: int = Query(0),
+    mirostat_tau: float = Query(5.0),
+    mirostat_eta: float = Query(0.1),
 ):
     if PAUSE_STATE['is_paused']:
         return Response(status_code=204)  # 204 No Content
 
-
-
-
     async def event_generator():
         async with generation_lock:
             try:
-                for chunk in llm.create_completion(
-                    prompt=current_context,
-                    max_tokens=num_predict,
-                    temperature=temperature,
-                    top_p=top_p,
-                    top_k=top_k,
-                    repeat_penalty=repeat_penalty,
-                    presence_penalty=presence_penalty,
-                    frequency_penalty=frequency_penalty,
-                    stream=True
-                ):
+                # Create base completion parameters
+                completion_params = {
+                    'prompt': current_context,
+                    'max_tokens': num_predict,
+                    'temperature': temperature,
+                    'repeat_penalty': repeat_penalty,
+                    'presence_penalty': presence_penalty,
+                    'frequency_penalty': frequency_penalty,
+                    'stream': True
+                }
+                
+                # Add sampling strategy parameters based on mirostat_mode
+                if mirostat_mode > 0:
+                    # If Mirostat is enabled, use Mirostat parameters
+                    completion_params.update({
+                        'mirostat_mode': mirostat_mode,
+                        'mirostat_tau': mirostat_tau,
+                        'mirostat_eta': mirostat_eta
+                    })
+                else:
+                    # If Mirostat is disabled, use top_p and top_k
+                    completion_params.update({
+                        'top_p': top_p,
+                        'top_k': top_k
+                    })
+                
+                for chunk in llm.create_completion(**completion_params):
                     if chunk['choices'][0]['finish_reason'] is not None:
                         yield {
                             "event": "done",
