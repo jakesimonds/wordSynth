@@ -4,15 +4,18 @@
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 RED='\033[0;31m'
-NC='\033[0m' # No Colorrr
+NC='\033[0m' # No Color
 
 # Define model path and URL
 MODEL_DIR="models"
 MODEL_FILE="Llama-3.2-1B-Instruct-Q3_K_L.gguf"
 MODEL_PATH="$MODEL_DIR/$MODEL_FILE"
-#MODEL_URL="https://huggingface.co/TheBloke/Llama-3.2-1B-Instruct-GGUF/resolve/main/llama-3.2-1b-instruct.Q3_K_L.gguf"
 MODEL_URL="https://huggingface.co/lmstudio-community/Llama-3.2-1B-Instruct-GGUF/resolve/main/Llama-3.2-1B-Instruct-Q3_K_L.gguf"     
-echo -e "${GREEN}=== WordSynth Startup Script ===${NC}"
+
+echo -e "${GREEN}=== WordSynth Model Download Script ===${NC}"
+
+# Create models directory if it doesn't exist
+mkdir -p "$MODEL_DIR"
 
 # Check if model exists, download if not
 if [ ! -f "$MODEL_PATH" ]; then
@@ -29,18 +32,10 @@ if [ ! -f "$MODEL_PATH" ]; then
     fi
     
     echo -e "${GREEN}Model downloaded successfully!${NC}"
+    echo -e "${GREEN}Model saved to: $MODEL_PATH${NC}"
 else
-    echo -e "${GREEN}Model found at $MODEL_PATH${NC}"
+    echo -e "${GREEN}Model already exists at: $MODEL_PATH${NC}"
 fi
 
-# Start backend server in a new terminal window
-echo -e "${GREEN}Starting backend server...${NC}"
-osascript -e 'tell app "Terminal" to do script "cd '$(pwd)' && source venv/bin/activate && cd backend && python -m uvicorn main:app --reload"'
-
-# Start frontend server in a new terminal window
-echo -e "${GREEN}Starting frontend server...${NC}"
-osascript -e 'tell app "Terminal" to do script "cd '$(pwd)'/frontend && npm run dev"'
-
-echo -e "${GREEN}Both servers are starting in separate terminal windows.${NC}"
-echo -e "${GREEN}Frontend will be available at: http://localhost:5173${NC}"
-echo -e "${YELLOW}Note: It may take a moment for both servers to fully start.${NC}"
+echo -e "${YELLOW}You can now start the backend and frontend servers manually.${NC}"
+echo -e "${YELLOW}See the README.md for instructions.${NC}"
