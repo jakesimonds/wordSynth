@@ -279,22 +279,24 @@ const LlamaStream = () => {
             </Card>
 
             <Card title="Parameters">
-              <Space direction="vertical" style={{ width: '100%', display: 'flex', alignItems: 'center' }}>
-                <div>
-                  <span>Temperature: </span>
+              <Space direction="vertical" style={{ width: '100%', display: 'flex', alignItems: 'flex-start' }}>
+                <div style={{ width: '100%' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <span>Temperature: </span>
+                    <span>{params.temperature.toFixed(2)}</span>
+                  </div>
                   <Slider
                     min={0}
                     max={1}
                     step={0.01}
                     value={params.temperature}
-                    onChange={(value: number) =>
-                      updateParameter("temperature", value)
-                    }
+                    onChange={(value: number) => updateParameter("temperature", value)}
+                    style={{ width: '100%' }}
                   />
                 </div>
                 
                 {/* Mirostat Mode Selector */}
-                <div>
+                <div style={{ width: '100%' }}>
                   <span>Mirostat Mode: </span>
                   <Select
                     value={params.mirostat_mode}
@@ -310,32 +312,43 @@ const LlamaStream = () => {
                 {/* Mirostat Parameters - only shown when Mirostat is enabled */}
                 {isMirostatEnabled && (
                   <>
-                    <div>
-                      <span>Mirostat Tau: </span>
+                    <div style={{ width: '100%' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                        <span>Mirostat Tau: </span>
+                        <span>{params.mirostat_tau.toFixed(1)}</span>
+                      </div>
                       <Slider
                         min={1.0}
                         max={10.0}
                         step={0.1}
                         value={params.mirostat_tau}
                         onChange={(value: number) => updateParameter("mirostat_tau", value)}
+                        style={{ width: '100%' }}
                       />
                     </div>
-                    <div>
-                      <span>Mirostat Eta: </span>
+                    <div style={{ width: '100%' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                        <span>Mirostat Eta: </span>
+                        <span>{params.mirostat_eta.toFixed(3)}</span>
+                      </div>
                       <Slider
                         min={0.001}
                         max={1.0}
                         step={0.001}
                         value={params.mirostat_eta}
                         onChange={(value: number) => updateParameter("mirostat_eta", value)}
+                        style={{ width: '100%' }}
                       />
                     </div>
                   </>
                 )}
                 
                 {/* top_p and top_k are disabled when Mirostat is enabled */}
-                <div>
-                  <span>Top_p: </span>
+                <div style={{ width: '100%' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <span>Top_p: </span>
+                    <span>{params.top_p.toFixed(2)}</span>
+                  </div>
                   <Slider
                     min={0}
                     max={1}
@@ -343,10 +356,14 @@ const LlamaStream = () => {
                     value={params.top_p}
                     onChange={(value: number) => updateParameter("top_p", value)}
                     disabled={isMirostatEnabled}
+                    style={{ width: '100%' }}
                   />
                 </div>
-                <div>
-                  <span>Top_k: </span>
+                <div style={{ width: '100%' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <span>Top_k: </span>
+                    <span>{params.top_k}</span>
+                  </div>
                   <Slider
                     min={1}
                     max={100}
@@ -354,54 +371,63 @@ const LlamaStream = () => {
                     value={params.top_k}
                     onChange={(value: number) => updateParameter("top_k", value)}
                     disabled={isMirostatEnabled}
+                    style={{ width: '100%' }}
                   />
                 </div>
-                <div>
-                  <span>num_predict: </span>
+                <div style={{ width: '100%' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <span>num_predict: </span>
+                    <span>{params.num_predict}</span>
+                  </div>
                   <Slider
                     min={4}
                     max={128}
                     step={4}
                     value={params.num_predict}
-                    onChange={(value: number) =>
-                      updateParameter("num_predict", value)
-                    }
+                    onChange={(value: number) => updateParameter("num_predict", value)}
+                    style={{ width: '100%' }}
                   />
                 </div>
-                <div>
-                  <span>Repeat Penalty: </span>
+                <div style={{ width: '100%' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <span>Repeat Penalty: </span>
+                    <span>{params.repeat_penalty.toFixed(2)}</span>
+                  </div>
                   <Slider
                     min={1.0}
                     max={2.0}
                     step={0.05}
                     value={params.repeat_penalty}
-                    onChange={(value: number) =>
-                      updateParameter("repeat_penalty", value)
-                    }
+                    onChange={(value: number) => updateParameter("repeat_penalty", value)}
+                    style={{ width: '100%' }}
                   />
                 </div>
-                <div>
-                  <span>Presence Penalty: </span>
+                <div style={{ width: '100%' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <span>Presence Penalty: </span>
+                    <span>{params.presence_penalty.toFixed(2)}</span>
+                  </div>
                   <Slider
                     min={0.0}
                     max={1.0}
                     step={0.05}
                     value={params.presence_penalty}
-                    onChange={(value: number) =>
-                      updateParameter("presence_penalty", value)
-                    }
+                    onChange={(value: number) => updateParameter("presence_penalty", value)}
+                    style={{ width: '100%' }}
                   />
                 </div>
-                <div>
-                  <span>Frequency Penalty: </span>
+                <div style={{ width: '100%' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <span>Frequency Penalty: </span>
+                    <span>{params.frequency_penalty.toFixed(2)}</span>
+                  </div>
                   <Slider
                     min={0.0}
                     max={1.0}
                     step={0.05}
                     value={params.frequency_penalty}
-                    onChange={(value: number) =>
-                      updateParameter("frequency_penalty", value)
-                    }
+                    onChange={(value: number) => updateParameter("frequency_penalty", value)}
+                    style={{ width: '100%' }}
                   />
                 </div>
                 <button
@@ -434,15 +460,23 @@ const LlamaStream = () => {
           height: "100%", // Full height of parent
           minHeight: 0, // Important for Firefox
         }}>
-          {/* Current Response - fixed height */}
+          {/* Current Response - fixed height with no scrolling */}
           <Card 
             title="Current Response" 
             style={{ 
-              height: "120px",
-              overflow: "auto"
+              height: "300px",
+              marginBottom: "16px"
+              // Removed overflow: "auto" to disable scrolling
             }}
           >
-            <div>{currentText}</div>
+            <div style={{
+              height: "250px", // Fixed height for content area
+              wordWrap: "break-word",
+              whiteSpace: "pre-wrap",
+              overflow: "hidden" // Hide overflow content instead of scrolling
+            }}>
+              {currentText}
+            </div>
           </Card>
 
           {/* Past Responses - takes remaining height, scrolls */}
@@ -475,7 +509,12 @@ const LlamaStream = () => {
                           marginBottom: 8,
                         }}
                       >
-                        {gen.text}
+                        <div style={{
+                          wordWrap: "break-word",
+                          whiteSpace: "pre-wrap"
+                        }}>
+                          {gen.text}
+                        </div>
                       </Card>
                     ))}
                     {Array.from({ length: fillerCount }).map((_, idx) => (
