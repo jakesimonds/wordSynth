@@ -1,5 +1,9 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 
+const API_BASE = import.meta.env.DEV 
+  ? 'http://localhost:8000' 
+  : '/api';
+
 interface StreamContextType {
     currentResponse: string;
     isStreaming: boolean;
@@ -27,7 +31,7 @@ function StreamProvider({ children }: { children: React.ReactNode }) {
     const setupStream = () => {
         closeStream();
 
-        const newEventSource = new EventSource('http://localhost:8000/stream');
+        const newEventSource = new EventSource(`${API_BASE}/stream`);
         setEventSource(newEventSource);
         setIsStreaming(true);
         setCurrentResponse(''); // Clear previous response

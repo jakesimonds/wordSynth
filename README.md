@@ -3,6 +3,8 @@
 ### Step 1: Download the Model
 First, download the required model by running the provided script:
 
+
+
 ```bash
 ./pull_model.sh
 ```

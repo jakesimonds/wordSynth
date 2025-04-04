@@ -1,6 +1,11 @@
 import { useState, useEffect, useRef } from "react";
 import { Slider, Space, Card, Skeleton, Select } from "antd";
 
+// Define API_BASE to handle both development and production environments
+const API_BASE = import.meta.env.DEV 
+  ? 'http://localhost:8000' 
+  : '/api';
+
 //test test 
 interface Generation {
   text: string;
@@ -63,7 +68,7 @@ function useStreamingGenerations(params: Params, isPaused: boolean) {
 
     // Open a connection to the stream endpoint with the query parameters.
     const eventSource = new EventSource(
-      `http://localhost:8000/stream?${queryParams.toString()}`
+      `${API_BASE}/stream?${queryParams.toString()}`
     );
     eventSourceRef.current = eventSource;
     setIsConnected(true);
@@ -122,7 +127,7 @@ const LlamaStream = () => {
   // Add this function
   const togglePause = async () => {
     try {
-      const response = await fetch('http://localhost:8000/toggle-pause');
+      const response = await fetch(`${API_BASE}/toggle-pause`);
       const data = await response.json();
       setIsPaused(data.is_paused);
     } catch (error) {
@@ -140,7 +145,7 @@ const LlamaStream = () => {
 
   // Add this effect to fetch contexts when component mounts
   useEffect(() => {
-    fetch('http://localhost:8000/contexts')
+    fetch(`${API_BASE}/contexts`)
       .then(res => res.json())
       .then(data => {
         setContexts(data.contexts);
@@ -150,7 +155,7 @@ const LlamaStream = () => {
 
   // Add this function to handle context changes
   const handleContextChange = async (index: number) => {
-    const response = await fetch(`http://localhost:8000/set-context?context_index=${index}`, {
+    const response = await fetch(`${API_BASE}/set-context?context_index=${index}`, {
       method: 'POST'
     });
     if (response.ok) {
@@ -533,4 +538,4 @@ const LlamaStream = () => {
   );
 };
 
-export default LlamaStream; 
+export default LlamaStream;
