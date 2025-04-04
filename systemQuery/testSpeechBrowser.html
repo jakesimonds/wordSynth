@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Speech Synthesis Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        button {
+            padding: 10px 15px;
+            margin: 5px;
+            cursor: pointer;
+        }
+        #log {
+            border: 1px solid #ccc;
+            padding: 10px;
+            height: 300px;
+            overflow-y: auto;
+            margin-top: 20px;
+            font-family: monospace;
+        }
+    </style>
+</head>
+<body>
+    <h1>Speech Synthesis Test</h1>
+    
+    <div>
+        <button onclick="runTest()">Run Full Test</button>
+        <button onclick="speak('Hello World')">Say Hello</button>
+        <button onclick="window.speechSynthesis.cancel()">Cancel Speech</button>
+    </div>
+    
+    <div id="log"></div>
+    
+    <script>
+        // Function to log messages
+        function log(message) {
+            const logElement = document.getElementById('log');
+            logElement.innerHTML += `<div>${new Date().toLocaleTimeString()}: ${message}</div>`;
+            logElement.scrollTop = logElement.scrollHeight;
+            console.log(message);
+        }
+        
+        // Function to speak text
+        function speak(text) {
+            if (!('speechSynthesis' in window)) {
+                log('ERROR: Speech synthesis not supported in this browser');
+                return;
+            }
+            
+            log(`Speaking: "${text}"`);
+            
+            // Only cancel if we're not in the middle of speaking
+            // This prevents rapid cancellations
+            if (!window.speechSynthesis.speaking) {
+                window.speechSynthesis.cancel();
+            }
+            
+            // Create a new utterance
+            const utterance = new SpeechSynthesisUtterance(text);
+            
+            // Add event handlers
+            utterance.onstart = () => log(`Started speaking: "${text}"`);
+            utterance.onend = () => log(`Finished speaking: "${text}"`);
+            utterance.onerror = (e) => log(`Error speaking: ${e.error}`);
+            
+            // Speak the text
+            window.speechSynthesis.speak(utterance);
+        }
+        
+        // Function to run the full test
+        function runTest() {
+            log('=== Starting Speech Test ===');
+            
+            // Speak "Hello World" immediately
+            speak('Hello World');
+            
+            // Speak a series of phrases with delays
+            setTimeout(() => speak('Hello World again'), 2000);
+            setTimeout(() => speak('This is a test of speech synthesis'), 4000);
+            setTimeout(() => speak('Each phrase interrupts the previous one'), 6000);
+            setTimeout(() => speak('This demonstrates how the speech API works'), 8000);
+            
+            // Demonstrate speech cancellation
+            setTimeout(() => {
+                log('Cancelling all speech...');
+                window.speechSynthesis.cancel();
+            }, 10000);
+            
+            setTimeout(() => speak('Speech resumed after cancellation'), 11000);
+            
+            setTimeout(() => log('=== Test Complete ==='), 15000);
+        }
+        
+        // Log available voices when they're loaded
+        window.speechSynthesis.onvoiceschanged = () => {
+            const voices = window.speechSynthesis.getVoices();
+            log(`Available voices: ${voices.length}`);
+            voices.slice(0, 5).forEach(voice => {
+                log(`- ${voice.name} (${voice.lang})`);
+            });
+            if (voices.length > 5) {
+                log(`... and ${voices.length - 5} more voices`);
+            }
+        };
+        
+        // Initial log
+        log('Page loaded. Click a button to test speech synthesis.');
+    </script>
+</body>
+</html> 

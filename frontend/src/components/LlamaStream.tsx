@@ -23,7 +23,7 @@ interface Params {
 // Custom hook to manage streaming generations.
 // NOTE: We pass the current params so that the stream connection
 // uses up‑to‑date values (including num_predict) when connecting.
-function useStreamingGenerations(params: Params, isPaused: boolean) {
+function useStreamingGenerations(params: Params, isPaused: boolean, isSpeechEnabled: boolean) {
   const [generations, setGenerations] = useState<Generation[]>([]);
   const [currentText, setCurrentText] = useState("");
   const [isConnected, setIsConnected] = useState(false);
@@ -37,12 +37,35 @@ function useStreamingGenerations(params: Params, isPaused: boolean) {
 
   const colors = ["#FF5733", "#33FF57", "#3357FF", "#F833FF", "#33FFF8"];
 
+  // Function to speak text
+  const speakText = (text: string) => {
+    if ('speechSynthesis' in window && isSpeechEnabled) {
+      // Cancel any ongoing speech
+      window.speechSynthesis.cancel();
+      
+      // Create a new utterance with the text
+      const utterance = new SpeechSynthesisUtterance(text);
+      
+      // Optional: You can set voice, rate, pitch here
+      // utterance.rate = 1.0; // Speed: 0.1 to 10
+      // utterance.pitch = 1.0; // Pitch: 0 to 2
+      
+      // Speak the text
+      window.speechSynthesis.speak(utterance);
+    }
+  };
+
   // handleGenerate resets current text and connects to the stream,
   // including the current parameter values in the query string.
   const handleGenerate = () => {
     // Reset the current text
     currentTextRef.current = "";
     setCurrentText("");
+
+    // Cancel any ongoing speech when starting a new generation
+    if ('speechSynthesis' in window) {
+      window.speechSynthesis.cancel();
+    }
 
     // Prevent duplicate connections
     if (eventSourceRef.current) return;
@@ -71,6 +94,11 @@ function useStreamingGenerations(params: Params, isPaused: boolean) {
     eventSource.onmessage = (event) => {
       currentTextRef.current += event.data;
       setCurrentText(currentTextRef.current);
+      
+      // Speak the new chunk of text if speech is enabled
+      if (isSpeechEnabled && event.data) {
+        speakText(event.data);
+      }
     };
 
     eventSource.addEventListener("done", () => {
@@ -99,6 +127,15 @@ function useStreamingGenerations(params: Params, isPaused: boolean) {
     }
   }, [isConnected, isPaused, handleGenerate]);
 
+  // Clean up speech synthesis when component unmounts
+  useEffect(() => {
+    return () => {
+      if ('speechSynthesis' in window) {
+        window.speechSynthesis.cancel();
+      }
+    };
+  }, []);
+
   return { generations, currentText, isConnected, handleGenerate };
 }
 
@@ -118,6 +155,7 @@ const LlamaStream = () => {
   const [isPaused, setIsPaused] = useState(false);
   const [contexts, setContexts] = useState<string[]>([]);
   const [currentContext, setCurrentContext] = useState<string>("");
+  const [isSpeechEnabled, setIsSpeechEnabled] = useState(false); // New state for speech toggle
 
   // Add this function
   const togglePause = async () => {
@@ -159,7 +197,16 @@ const LlamaStream = () => {
     }
   };
 
-  const { generations, currentText } = useStreamingGenerations(params, isPaused);
+  // Add this function to toggle speech
+  const toggleSpeech = () => {
+    // If turning off speech, cancel any ongoing speech
+    if (isSpeechEnabled && 'speechSynthesis' in window) {
+      window.speechSynthesis.cancel();
+    }
+    setIsSpeechEnabled(!isSpeechEnabled);
+  };
+
+  const { generations, currentText } = useStreamingGenerations(params, isPaused, isSpeechEnabled);
 
   // Check if Mirostat is enabled
   const isMirostatEnabled = params.mirostat_mode > 0;
@@ -445,6 +492,22 @@ const LlamaStream = () => {
                   }}
                 >
                   {isPaused ? "Resume" : "Pause"}
+                </button>
+                <button
+                  onClick={toggleSpeech}
+                  style={{
+                    width: "100%",
+                    padding: "12px",
+                    marginBottom: "16px",
+                    fontSize: "16px",
+                    backgroundColor: isSpeechEnabled ? "#4CAF50" : "#f44336",
+                    color: "white",
+                    border: "none",
+                    borderRadius: "4px",
+                    cursor: "pointer"
+                  }}
+                >
+                  {isSpeechEnabled ? "Speech: ON" : "Speech: OFF"}
                 </button>
               </Space>
             </Card>

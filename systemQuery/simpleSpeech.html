@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Simple Speech Test</title>
+</head>
+<body>
+    <h1>Simple Speech Test</h1>
+    
+    <button onclick="speak('Hello world')">Say Hello World</button>
+    <button onclick="speak('This is a test of speech synthesis')">Say Test Phrase</button>
+    
+    <script>
+        // Super simple speech function
+        function speak(text) {
+            // Create speech utterance
+            const utterance = new SpeechSynthesisUtterance(text);
+            
+            // Speak
+            window.speechSynthesis.speak(utterance);
+            
+            // Log to console
+            console.log('Speaking: ' + text);
+        }
+    </script>
+</body>
+</html>
