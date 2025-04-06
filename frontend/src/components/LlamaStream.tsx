@@ -42,12 +42,31 @@ function useStreamingGenerations(params: Params, isPaused: boolean, currentConte
 
   const colors = ["#FF5733", "#33FF57", "#3357FF", "#F833FF", "#33FFF8"];
 
+  // Function to speak text
+  const speakText = (text: string) => {
+    if ('speechSynthesis' in window && text.trim()) {
+      // Create a new utterance
+      const utterance = new SpeechSynthesisUtterance(text);
+      
+      // Set speed to 2.0
+      utterance.rate = 4.0;
+      
+      // Speak the text
+      window.speechSynthesis.speak(utterance);
+    }
+  };
+
   // handleGenerate resets current text and connects to the stream,
   // including the current parameter values in the query string.
   const handleGenerate = () => {
     // Reset the current text
     currentTextRef.current = "";
     setCurrentText("");
+
+    // Cancel any ongoing speech when starting a new generation
+    if ('speechSynthesis' in window) {
+      window.speechSynthesis.cancel();
+    }
 
     // Prevent duplicate connections
     if (eventSourceRef.current) return;
@@ -77,6 +96,11 @@ function useStreamingGenerations(params: Params, isPaused: boolean, currentConte
     eventSource.onmessage = (event) => {
       currentTextRef.current += event.data;
       setCurrentText(currentTextRef.current);
+      
+      // Speak the new chunk of text as it arrives
+      if (event.data.trim()) {
+        speakText(event.data);
+      }
     };
 
     eventSource.addEventListener("done", () => {
@@ -93,6 +117,15 @@ function useStreamingGenerations(params: Params, isPaused: boolean, currentConte
       setIsConnected(false);
     });
   };
+
+  //Clean up speech when component unmounts
+  useEffect(() => {
+    return () => {
+      if ('speechSynthesis' in window) {
+        window.speechSynthesis.cancel();
+      }
+    };
+  }, []);
 
   // Modify the auto-generation effect
   useEffect(() => {
