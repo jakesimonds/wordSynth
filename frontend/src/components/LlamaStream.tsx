@@ -84,18 +84,6 @@ function useStreamingGenerations(params: Params, isPaused: boolean, currentConte
     }
   };
 
-  // SLOW!!!!!!!
-  // useEffect(() => {
-  //   if ('speechSynthesis' in window) {
-  //     // This initial call helps load voices in some browsers
-  //     window.speechSynthesis.getVoices();
-      
-  //     // Some browsers need a listener to know when voices are loaded
-  //     window.speechSynthesis.onvoiceschanged = () => {
-  //       window.speechSynthesis.getVoices();
-  //     };
-  //   }
-  // }, []);
 
   // handleGenerate resets current text and connects to the stream,
   // including the current parameter values in the query string.
