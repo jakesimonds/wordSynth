@@ -25,10 +25,17 @@ interface Params {
   mirostat_eta: number;   // Learning rate
 }
 
+// In LlamaStream.tsx add interface for voice parameters
+interface VoiceParams {
+  pitch: number;
+  speed: number;
+  tempo: number; // artificial pause between chunks in seconds
+}
+
 // Custom hook to manage streaming generations.
 // NOTE: We pass the current params so that the stream connection
 // uses up‑to‑date values (including num_predict) when connecting.
-function useStreamingGenerations(params: Params, isPaused: boolean, currentContext: string) {
+function useStreamingGenerations(params: Params, isPaused: boolean, currentContext: string, voiceParams: VoiceParams) {
   const [generations, setGenerations] = useState<Generation[]>([]);
   const [currentText, setCurrentText] = useState("");
   const [isConnected, setIsConnected] = useState(false);
@@ -42,19 +49,53 @@ function useStreamingGenerations(params: Params, isPaused: boolean, currentConte
 
   const colors = ["#FF5733", "#33FF57", "#3357FF", "#F833FF", "#33FFF8"];
 
-  // Function to speak text
+  // Update the speakText function to use voice parameters
   const speakText = (text: string) => {
     if ('speechSynthesis' in window && text.trim()) {
       // Create a new utterance
       const utterance = new SpeechSynthesisUtterance(text);
       
-      // Set speed to 2.0
-      utterance.rate = 4.0;
+      // Set voice parameters
+      utterance.rate = voiceParams.speed;
+      utterance.pitch = voiceParams.pitch;
       
       // Speak the text
       window.speechSynthesis.speak(utterance);
+      
+      // Add artificial pause if tempo > 0
+      if (voiceParams.tempo > 0) {
+        // Calculate pause time in milliseconds (0-2000ms)
+        const pauseTime = voiceParams.tempo * 2000;
+        
+        // Use speechSynthesis.pause() and resume() to create an artificial pause
+        if (pauseTime > 10) { // Only pause if it's a meaningful duration
+          setTimeout(() => {
+            if ('speechSynthesis' in window) {
+              window.speechSynthesis.pause();
+              setTimeout(() => {
+                if ('speechSynthesis' in window) {
+                  window.speechSynthesis.resume();
+                }
+              }, pauseTime);
+            }
+          }, 10); // Short delay before pausing
+        }
+      }
     }
   };
+
+  // SLOW!!!!!!!
+  // useEffect(() => {
+  //   if ('speechSynthesis' in window) {
+  //     // This initial call helps load voices in some browsers
+  //     window.speechSynthesis.getVoices();
+      
+  //     // Some browsers need a listener to know when voices are loaded
+  //     window.speechSynthesis.onvoiceschanged = () => {
+  //       window.speechSynthesis.getVoices();
+  //     };
+  //   }
+  // }, []);
 
   // handleGenerate resets current text and connects to the stream,
   // including the current parameter values in the query string.
@@ -154,6 +195,14 @@ const LlamaStream = () => {
     mirostat_tau: 5.0,    // Default tau value
     mirostat_eta: 0.1,    // Default eta value
   });
+  
+  // Add voice parameters state
+  const [voiceParams, setVoiceParams] = useState<VoiceParams>({
+    pitch: 1.0,    // Default pitch (normal)
+    speed: 4.0,    // Fast speech (keeping the old speed)
+    tempo: 0.0,    // Minimal pause between chunks
+  });
+
   const [isPaused, setIsPaused] = useState(false);
   const [isModalVisible, setIsModalVisible] = useState(true);
   const [inputPrompt, setInputPrompt] = useState("Repeat the word hello over and over again 100 times.");
@@ -176,6 +225,13 @@ const LlamaStream = () => {
     }));
   };
 
+  const updateVoiceParameter = (paramName: keyof VoiceParams, value: number) => {
+    setVoiceParams((prev) => ({
+      ...prev,
+      [paramName]: value,
+    }));
+  };
+
   const handleSubmitPrompt = useCallback(() => {
     setCurrentContext(inputPrompt);
     setIsModalVisible(false);
@@ -184,7 +240,8 @@ const LlamaStream = () => {
   const { generations, currentText } = useStreamingGenerations(
     params, 
     isPaused, 
-    currentContext || inputPrompt
+    currentContext || inputPrompt,
+    voiceParams  // Pass voice parameters
   );
 
   const isMirostatEnabled = params.mirostat_mode > 0;
@@ -279,25 +336,62 @@ const LlamaStream = () => {
               </div>
             </Card>
 
-            <Card title="Parameters">
+            <Card title="Voice Parameters">
               <Space direction="vertical" style={{ width: '100%', display: 'flex', alignItems: 'flex-start' }}>
                 <div style={{ width: '100%' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                    <span>Temperature: </span>
-                    <span>{params.temperature.toFixed(2)}</span>
+                    <span>Speech Speed: </span>
+                    <span>{voiceParams.speed.toFixed(1)}</span>
                   </div>
                   <Slider
-                    min={0}
-                    max={1}
-                    step={0.01}
-                    value={params.temperature}
-                    onChange={(value: number) => updateParameter("temperature", value)}
+                    min={0.5}
+                    max={5.0}
+                    step={0.1}
+                    value={voiceParams.speed}
+                    onChange={(value: number) => updateVoiceParameter("speed", value)}
                     style={{ width: '100%' }}
                   />
                 </div>
                 
                 <div style={{ width: '100%' }}>
-                  <span>Mirostat Mode: </span>
+                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <span>Pitch: </span>
+                    <span>{voiceParams.pitch.toFixed(1)}</span>
+                  </div>
+                  <Slider
+                    min={0.5}
+                    max={2.0}
+                    step={0.1}
+                    value={voiceParams.pitch}
+                    onChange={(value: number) => updateVoiceParameter("pitch", value)}
+                    style={{ width: '100%' }}
+                  />
+                </div>
+                
+                <div style={{ width: '100%' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <span>Tempo (Pause): </span>
+                    <span>{(voiceParams.tempo * 2000).toFixed(0)}ms</span>
+                  </div>
+                  <Slider
+                    min={0}
+                    max={1}
+                    step={0.01}
+                    value={voiceParams.tempo}
+                    onChange={(value: number) => updateVoiceParameter("tempo", value)}
+                    style={{ width: '100%' }}
+                  />
+                </div>
+              </Space>
+            </Card>
+
+            <Card title="Model Parameters">
+              <Space direction="vertical" style={{ width: '100%', display: 'flex', alignItems: 'flex-start' }}>
+                <div style={{ width: '100%' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <span>Mirostat Mode: </span>
+                    <span>{params.mirostat_mode}</span>
+                  </div>
                   <Select
                     value={params.mirostat_mode}
                     onChange={(value: number) => updateParameter("mirostat_mode", value)}
