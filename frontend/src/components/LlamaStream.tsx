@@ -1,5 +1,5 @@
-import { useState, useEffect, useRef } from "react";
-import { Slider, Space, Card, Skeleton, Select } from "antd";
+import { useState, useEffect, useRef, useCallback } from "react";
+import { Slider, Space, Card, Skeleton, Select, Modal, Input, Button } from "antd";
 
 // Define API_BASE to handle both development and production environments
 const API_BASE = import.meta.env.DEV 
@@ -28,7 +28,7 @@ interface Params {
 // Custom hook to manage streaming generations.
 // NOTE: We pass the current params so that the stream connection
 // uses up‑to‑date values (including num_predict) when connecting.
-function useStreamingGenerations(params: Params, isPaused: boolean) {
+function useStreamingGenerations(params: Params, isPaused: boolean, currentContext: string) {
   const [generations, setGenerations] = useState<Generation[]>([]);
   const [currentText, setCurrentText] = useState("");
   const [isConnected, setIsConnected] = useState(false);
@@ -54,6 +54,7 @@ function useStreamingGenerations(params: Params, isPaused: boolean) {
 
     // Build a query string based on the current parameter values
     const queryParams = new URLSearchParams({
+      context: currentContext,
       temperature: params.temperature.toString(),
       top_p: params.top_p.toString(),
       top_k: params.top_k.toString(),
@@ -121,10 +122,10 @@ const LlamaStream = () => {
     mirostat_eta: 0.1,    // Default eta value
   });
   const [isPaused, setIsPaused] = useState(false);
-  const [contexts, setContexts] = useState<string[]>([]);
+  const [isModalVisible, setIsModalVisible] = useState(true);
+  const [inputPrompt, setInputPrompt] = useState("Repeat the word hello over and over again 100 times.");
   const [currentContext, setCurrentContext] = useState<string>("");
 
-  // Add this function
   const togglePause = async () => {
     try {
       const response = await fetch(`${API_BASE}/toggle-pause`);
@@ -135,7 +136,6 @@ const LlamaStream = () => {
     }
   };
 
-  // Update parameters when sliders move.
   const updateParameter = (paramName: keyof Params, value: number) => {
     setParams((prev) => ({
       ...prev,
@@ -143,35 +143,21 @@ const LlamaStream = () => {
     }));
   };
 
-  // Add this effect to fetch contexts when component mounts
-  useEffect(() => {
-    fetch(`${API_BASE}/contexts`)
-      .then(res => res.json())
-      .then(data => {
-        setContexts(data.contexts);
-        setCurrentContext(data.current);
-      });
-  }, []);
+  const handleSubmitPrompt = useCallback(() => {
+    setCurrentContext(inputPrompt);
+    setIsModalVisible(false);
+  }, [inputPrompt]);
 
-  // Add this function to handle context changes
-  const handleContextChange = async (index: number) => {
-    const response = await fetch(`${API_BASE}/set-context?context_index=${index}`, {
-      method: 'POST'
-    });
-    if (response.ok) {
-      const data = await response.json();
-      setCurrentContext(data.current);
-    }
-  };
+  const { generations, currentText } = useStreamingGenerations(
+    params, 
+    isPaused, 
+    currentContext || inputPrompt
+  );
 
-  const { generations, currentText } = useStreamingGenerations(params, isPaused);
-
-  // Check if Mirostat is enabled
   const isMirostatEnabled = params.mirostat_mode > 0;
 
   return (
     <div style={{ display: "flex", flexDirection: "column", height: "100vh" }}>
-      {/* Add this style tag for hover effects */}
       <style>
         {`
           .header-link {
@@ -185,7 +171,6 @@ const LlamaStream = () => {
         `}
       </style>
 
-      {/* Header Section */}
       <div style={{
         width: "100%",
         padding: "1rem",
@@ -196,7 +181,6 @@ const LlamaStream = () => {
         alignItems: "center",
         gap: "0.5rem"
       }}>
-        {/* Title */}
         <h1 style={{
           margin: 0,
           fontSize: "3.5rem",
@@ -211,7 +195,6 @@ const LlamaStream = () => {
           WORD SYNTH
         </h1>
         
-        {/* Updated links */}
         <div style={{
           display: "flex",
           gap: "2rem",
@@ -236,7 +219,6 @@ const LlamaStream = () => {
         </div>
       </div>
 
-      {/* Your existing main content div */}
       <div style={{
         display: "flex",
         width: "100%",
@@ -244,43 +226,24 @@ const LlamaStream = () => {
         padding: "1rem",
         gap: "16px",
       }}>
-        {/* Left column for Parameters - fixed width */}
         <div style={{ 
           flex: "0 0 300px"
         }}>
           <Space direction="vertical" style={{ width: '100%', gap: '16px' }}>
-            <Card title="Current Prompt">
-              <Space direction="vertical" style={{ width: '100%' }}>
-                <Select
-                  value={contexts.indexOf(currentContext)}
-                  onChange={handleContextChange}
-                  style={{ width: '250px' }}
-                >
-                  {contexts.map((context, index) => (
-                    <Select.Option 
-                      key={index} 
-                      value={index}
-                      title={context}
-                    >
-                      {context.length > 30 ? context.slice(0, 30) + '...' : context}
-                    </Select.Option>
-                  ))}
-                </Select>
-                <div style={{ 
-                  marginTop: '8px',
-                  padding: '8px',
-                  background: '#f5f5f5',
-                  borderRadius: '4px',
-                  fontSize: '0.9em',
-                  wordWrap: 'break-word',
-                  whiteSpace: 'pre-wrap',
-                  width: '100%',
-                  maxWidth: '300px',
-                  overflowWrap: 'break-word'
-                }}>
-                  {currentContext}
-                </div>
-              </Space>
+            <Card title="Prompt: ">
+              <div style={{ 
+                padding: '8px',
+                background: '#f5f5f5',
+                borderRadius: '4px',
+                fontSize: '0.9em',
+                wordWrap: 'break-word',
+                whiteSpace: 'pre-wrap',
+                width: '100%',
+                maxWidth: '300px',
+                overflowWrap: 'break-word'
+              }}>
+                {currentContext}
+              </div>
             </Card>
 
             <Card title="Parameters">
@@ -300,7 +263,6 @@ const LlamaStream = () => {
                   />
                 </div>
                 
-                {/* Mirostat Mode Selector */}
                 <div style={{ width: '100%' }}>
                   <span>Mirostat Mode: </span>
                   <Select
@@ -314,7 +276,6 @@ const LlamaStream = () => {
                   </Select>
                 </div>
                 
-                {/* Mirostat Parameters - only shown when Mirostat is enabled */}
                 {isMirostatEnabled && (
                   <>
                     <div style={{ width: '100%' }}>
@@ -348,7 +309,6 @@ const LlamaStream = () => {
                   </>
                 )}
                 
-                {/* top_p and top_k are disabled when Mirostat is enabled */}
                 <div style={{ width: '100%' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                     <span>Top_p: </span>
@@ -456,35 +416,31 @@ const LlamaStream = () => {
           </Space>
         </div>
 
-        {/* Right column for Responses - takes remaining width */}
         <div style={{
           flex: 1,
           display: "flex",
           flexDirection: "column",
           gap: "16px",
-          height: "100%", // Full height of parent
-          minHeight: 0, // Important for Firefox
+          height: "100%",
+          minHeight: 0,
         }}>
-          {/* Current Response - fixed height with no scrolling */}
           <Card 
             title="Current Response" 
             style={{ 
               height: "300px",
               marginBottom: "16px"
-              // Removed overflow: "auto" to disable scrolling
             }}
           >
             <div style={{
-              height: "250px", // Fixed height for content area
+              height: "250px",
               wordWrap: "break-word",
               whiteSpace: "pre-wrap",
-              overflow: "hidden" // Hide overflow content instead of scrolling
+              overflow: "hidden"
             }}>
               {currentText}
             </div>
           </Card>
 
-          {/* Past Responses - takes remaining height, scrolls */}
           <Card 
             title="Past Responses"
             style={{
@@ -534,6 +490,88 @@ const LlamaStream = () => {
           </Card>
         </div>
       </div>
+
+      <Modal
+        title="Set Your Prompt"
+        open={isModalVisible}
+        closable={false}
+        maskClosable={false}
+        footer={[
+          <Button 
+            key="submit" 
+            type="primary" 
+            onClick={handleSubmitPrompt}
+            size="large"
+            style={{ padding: "0 40px", height: "50px", fontSize: "18px" }}
+          >
+            Start Generating
+          </Button>
+        ]}
+        width="100%"
+        style={{ 
+          top: 0,
+          padding: 0,
+          maxWidth: "100vw",
+          margin: 0,
+        }}
+        bodyStyle={{ 
+          height: "calc(100vh - 110px)", // Account for header and footer height
+          padding: "40px",
+          display: "flex",
+          flexDirection: "column",
+          justifyContent: "center",
+          alignItems: "center",
+        }}
+        wrapClassName="fullscreen-modal" // Add a class for additional styling
+      >
+        <div style={{ 
+          width: "80%",
+          maxWidth: "1000px",
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+        }}>
+          <h1 style={{
+            fontSize: "36px",
+            marginBottom: "30px",
+            textAlign: "center",
+            fontWeight: "bold",
+          }}>
+            Welcome to Word Synth
+          </h1>
+          
+          <div style={{ 
+            marginBottom: "30px", 
+            fontSize: "18px",
+            color: "#555",
+            textAlign: "center",
+            width: "100%",
+          }}>
+            Enter the prompt you'd like to use for generation:
+          </div>
+          
+          <Input.TextArea
+            value={inputPrompt}
+            onChange={(e) => setInputPrompt(e.target.value)}
+            placeholder="Enter your prompt here..."
+            autoSize={{ minRows: 6, maxRows: 10 }}
+            style={{ 
+              fontSize: "18px",
+              width: "100%",
+              borderRadius: "8px",
+            }}
+          />
+          
+          <div style={{ 
+            marginTop: "20px", 
+            fontSize: "16px",
+            color: "#888",
+            textAlign: "center",
+          }}>
+            Click 'Start Generating' to begin
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 };

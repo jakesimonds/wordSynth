@@ -43,17 +43,7 @@ generation_lock = asyncio.Lock()
 # Add near the top with other globals
 PAUSE_STATE = {'is_paused': False}
 
-# Add near the top with other globals
-possible_contexts = [
-    "Repeat the word hello over and over again 100 times.",
-    "Describe how to implement a basic sorting algorithm.",
-    "Explain what a hash table is and how it works.",
-    "Describe the concept of recursion with a simple example.",
-    "Explain how to find the largest number in an array."
-]
 
-# Default context
-current_context = possible_contexts[0]
 
 @app.get("/toggle-pause")
 async def toggle_pause():
@@ -62,6 +52,7 @@ async def toggle_pause():
 
 @app.get("/stream")
 async def stream_text(
+    context: str = Query(...),
     temperature: float = Query(0.4),
     top_p: float = Query(0.4),
     top_k: int = Query(30),
@@ -81,7 +72,7 @@ async def stream_text(
             try:
                 # Create base completion parameters
                 completion_params = {
-                    'prompt': current_context,
+                    'prompt': context,
                     'max_tokens': num_predict,
                     'temperature': temperature,
                     'repeat_penalty': repeat_penalty,
@@ -132,22 +123,3 @@ async def update_parameters(new_params: Dict):
     global params
     params.update(new_params)
     return {"status": "success", "params": params}
-
-@app.post("/inject-tokens")
-async def inject_tokens(data: dict):
-    text = data.get("text", "")
-    print(f"Would inject tokens: {text}")  # Just logging for now
-    return {"status": "ok"}
-
-# Add a new endpoint to get contexts and set current context
-@app.get("/contexts")
-async def get_contexts():
-    return {"contexts": possible_contexts, "current": current_context}
-
-@app.post("/set-context")
-async def set_context(context_index: int = Query(...)):
-    global current_context
-    if 0 <= context_index < len(possible_contexts):
-        current_context = possible_contexts[context_index]
-        return {"current": current_context}
-    return {"error": "Invalid context index"}, 400 
