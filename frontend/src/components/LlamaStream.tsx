@@ -21,10 +21,6 @@ interface Generation {
     mirostat_mode: number;
     mirostat_tau: number;
     mirostat_eta: number;
-    // Add voice parameters too
-    voice_speed: number;
-    voice_pitch: number;
-    voice_tempo: number;
   };
 }
 
@@ -161,9 +157,7 @@ function useStreamingGenerations(params: Params, isPaused: boolean, currentConte
           color: colors[prev.length % colors.length],
           params: {
             ...params,  // Include all model parameters
-            voice_speed: voiceParams.speed,
-            voice_pitch: voiceParams.pitch,
-            voice_tempo: voiceParams.tempo
+
           }
         };
         return [...prev, newGeneration];
@@ -663,35 +657,23 @@ const LlamaStream = () => {
                           color: '#666',
                         }}>
                           <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
-                            <span>🌡️ temp: {gen.params.temperature.toFixed(2)}</span>
+                            <span>temp: {gen.params.temperature.toFixed(2)}</span>
                             {gen.params.mirostat_mode > 0 ? (
                               <>
-                                <span>🎯 mirostat: {gen.params.mirostat_mode}</span>
-                                <span>τ: {gen.params.mirostat_tau.toFixed(1)}</span>
-                                <span>η: {gen.params.mirostat_eta.toFixed(3)}</span>
+                                <span>mirostat: {gen.params.mirostat_mode}</span>
+                                <span>tau: {gen.params.mirostat_tau.toFixed(1)}</span>
+                                <span>eta: {gen.params.mirostat_eta.toFixed(3)}</span>
                               </>
                             ) : (
                               <>
-                                <span>📊 top_p: {gen.params.top_p.toFixed(2)}</span>
-                                <span>🔝 top_k: {gen.params.top_k}</span>
+                                <span>top_p: {gen.params.top_p.toFixed(2)}</span>
+                                <span>top_k: {gen.params.top_k}</span>
                               </>
                             )}
-                            <span>🔄 repeat: {gen.params.repeat_penalty.toFixed(2)}</span>
-                            <span>📝 tokens: {gen.params.num_predict}</span>
-                          </div>
-                          <div style={{ 
-                            display: 'flex', 
-                            flexWrap: 'wrap', 
-                            gap: '8px',
-                            marginTop: '4px',
-                            borderTop: '1px dashed #eee',
-                            paddingTop: '4px'
-                          }}>
-                            <span>🗣️ speed: {gen.params.voice_speed.toFixed(1)}x</span>
-                            <span>🎵 pitch: {gen.params.voice_pitch.toFixed(1)}</span>
-                            {gen.params.voice_tempo > 0 && (
-                              <span>⏱️ pause: {(gen.params.voice_tempo * 2000).toFixed(0)}ms</span>
-                            )}
+                            <span>repeat: {gen.params.repeat_penalty.toFixed(2)}</span>
+                            <span>tokens: {gen.params.num_predict}</span>
+                            <span>presence: {gen.params.presence_penalty.toFixed(2)}</span>
+                            <span>frequency: {gen.params.frequency_penalty.toFixed(2)}</span>
                           </div>
                         </div>
                       </Card>
