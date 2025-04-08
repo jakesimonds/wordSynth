@@ -289,7 +289,7 @@ const LlamaStream = () => {
       </style>
 
       <div style={{
-        width: "100%",
+        width: "100vw",
         padding: "1rem",
         background: "linear-gradient(45deg, #2b1331, #000000)",
         marginBottom: "1rem",

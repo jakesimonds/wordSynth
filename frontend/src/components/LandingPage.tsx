@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, KeyboardEvent } from "react";
 import { useNavigate } from "react-router-dom";
 import { Input, Button } from "antd";
 
@@ -11,18 +11,29 @@ const LandingPage = () => {
     navigate('/app', { state: { prompt: inputPrompt } });
   };
 
+  const handleKeyPress = (e: KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault(); // Prevent default Enter key behavior
+      handleStart();
+    }
+  };
+
   return (
     <div style={{
       minHeight: "100vh",
+      width: "100%",
       display: "flex",
       flexDirection: "column",
       alignItems: "center",
+      justifyContent: "center",
       background: "linear-gradient(45deg, #2b1331, #000000)",
-      padding: "2rem"
+      padding: "1rem",
+      boxSizing: "border-box",
+      overflow: "hidden"
     }}>
       <h1 style={{
-        margin: "2rem 0",
-        fontSize: "4.5rem",
+        margin: "1rem 0",
+        fontSize: "clamp(2.5rem, 8vw, 4.5rem)", // Responsive font size
         fontFamily: "'Press Start 2P', system-ui",
         background: "linear-gradient(45deg, #e100ff, #7700ff)",
         WebkitBackgroundClip: "text",
@@ -35,18 +46,19 @@ const LandingPage = () => {
       </h1>
 
       <div style={{
-        width: "80%",
-        maxWidth: "800px",
+        width: "95vw",
+        //maxWidth: "500px", // Slightly reduced max-width
         background: "rgba(255, 255, 255, 0.95)",
         borderRadius: "16px",
-        padding: "2rem",
+        padding: "1.5rem", // Reduced padding
         boxShadow: "0 8px 32px rgba(0, 0, 0, 0.2)",
         display: "flex",
         flexDirection: "column",
-        gap: "2rem"
+        gap: "1rem", // Reduced gap
+        boxSizing: "border-box"
       }}>
         <div style={{
-          fontSize: "1.5rem",
+          fontSize: "clamp(1rem, 4vw, 1.5rem)", // Responsive font size
           color: "#333",
           textAlign: "center",
           lineHeight: "1.6"
@@ -55,10 +67,10 @@ const LandingPage = () => {
         </div>
 
         <div style={{
-          fontSize: "1.2rem",
+          fontSize: "clamp(1rem, 4vw, 1.2rem)", // Responsive font size
           color: "#555",
           textAlign: "center",
-          marginBottom: "1rem"
+          marginBottom: "0.5rem"
         }}>
           Enter your prompt to begin:
         </div>
@@ -66,12 +78,15 @@ const LandingPage = () => {
         <Input.TextArea
           value={inputPrompt}
           onChange={(e) => setInputPrompt(e.target.value)}
+          onKeyDown={handleKeyPress}
           placeholder="Enter your prompt here..."
-          autoSize={{ minRows: 6, maxRows: 10 }}
+          autoSize={{ minRows: 4, maxRows: 8 }} // Adjusted for mobile
           style={{
-            fontSize: "1.2rem",
+            fontSize: "clamp(1rem, 4vw, 1.2rem)", // Responsive font size
             borderRadius: "8px",
             border: "2px solid #e100ff33",
+            width: "100%",
+            boxSizing: "border-box"
           }}
         />
 
@@ -80,12 +95,13 @@ const LandingPage = () => {
           onClick={handleStart}
           size="large"
           style={{
-            height: "60px",
-            fontSize: "1.4rem",
+            height: "50px", // Slightly smaller on mobile
+            fontSize: "clamp(1rem, 4vw, 1.4rem)", // Responsive font size
             background: "linear-gradient(45deg, #e100ff, #7700ff)",
             border: "none",
             borderRadius: "8px",
-            marginTop: "1rem"
+            marginTop: "0.5rem",
+            width: "100%"
           }}
         >
           Start Generating
@@ -94,8 +110,8 @@ const LandingPage = () => {
         <div style={{
           display: "flex",
           justifyContent: "center",
-          gap: "2rem",
-          marginTop: "1rem"
+          gap: "1rem",
+          marginTop: "0.5rem"
         }}>
           <a
             href="https://github.com/jakesimonds/wordSynth"
@@ -104,7 +120,7 @@ const LandingPage = () => {
             style={{
               color: "#b19dd8",
               textDecoration: "none",
-              fontSize: "1.1rem",
+              fontSize: "clamp(0.8rem, 3vw, 1.1rem)", // Responsive font size
               transition: "color 0.2s"
             }}
           >
@@ -117,7 +133,7 @@ const LandingPage = () => {
             style={{
               color: "#b19dd8",
               textDecoration: "none",
-              fontSize: "1.1rem",
+              fontSize: "clamp(0.8rem, 3vw, 1.1rem)", // Responsive font size
               transition: "color 0.2s"
             }}
           >
