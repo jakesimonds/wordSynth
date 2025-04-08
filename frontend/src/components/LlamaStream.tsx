@@ -100,6 +100,11 @@ function useStreamingGenerations(params: Params, isPaused: boolean, currentConte
     // Prevent duplicate connections
     if (eventSourceRef.current) return;
 
+    if (!currentContext) {
+      console.error("No context available for generation");
+      return;
+    }
+
     // Build a query string based on the current parameter values
     const queryParams = new URLSearchParams({
       context: currentContext,
@@ -246,6 +251,22 @@ const LlamaStream = () => {
           .header-link:hover {
             color: #e100ff;
           }
+          
+          /* Add responsive breakpoint */
+          @media (max-width: 768px) {
+            .content-container {
+              flex-direction: column !important;
+            }
+            .sidebar {
+              flex: 1 1 auto !important;
+              width: 100% !important;
+              margin-bottom: 16px;
+            }
+            .main-content {
+              flex: 1 1 auto !important;
+              width: 100% !important;
+            }
+          }
         `}
       </style>
 
@@ -297,16 +318,22 @@ const LlamaStream = () => {
         </div>
       </div>
 
-      <div style={{
-        display: "flex",
-        width: "100%",
-        flex: 1,
-        padding: "1rem",
-        gap: "16px",
-      }}>
-        <div style={{ 
-          flex: "0 0 300px"
-        }}>
+      <div 
+        className="content-container" 
+        style={{
+          display: "flex",
+          width: "100%",
+          flex: 1,
+          padding: "1rem",
+          gap: "16px",
+        }}
+      >
+        <div 
+          className="sidebar"
+          style={{ 
+            flex: "0 0 300px"
+          }}
+        >
           <Space direction="vertical" style={{ width: '100%', gap: '16px' }}>
             <Card title="Prompt: ">
               <div style={{ 
@@ -377,9 +404,21 @@ const LlamaStream = () => {
               <Space direction="vertical" style={{ width: '100%', display: 'flex', alignItems: 'flex-start' }}>
                 <div style={{ width: '100%' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                    <span>Mirostat Mode: </span>
-                    <span>{params.mirostat_mode}</span>
+                    <span>Temperature: </span>
+                    <span>{params.temperature.toFixed(2)}</span>
                   </div>
+                  <Slider
+                    min={0}
+                    max={1}
+                    step={0.01}
+                    value={params.temperature}
+                    onChange={(value: number) => updateParameter("temperature", value)}
+                    style={{ width: '100%' }}
+                  />
+                </div>
+                
+                <div style={{ width: '100%' }}>
+                  <span>Mirostat Mode: </span>
                   <Select
                     value={params.mirostat_mode}
                     onChange={(value: number) => updateParameter("mirostat_mode", value)}
@@ -531,14 +570,17 @@ const LlamaStream = () => {
           </Space>
         </div>
 
-        <div style={{
-          flex: 1,
-          display: "flex",
-          flexDirection: "column",
-          gap: "16px",
-          height: "100%",
-          minHeight: 0,
-        }}>
+        <div 
+          className="main-content"
+          style={{
+            flex: 1,
+            display: "flex",
+            flexDirection: "column",
+            gap: "16px",
+            height: "100%",
+            minHeight: 0,
+          }}
+        >
           <Card 
             title="Current Response" 
             style={{ 
@@ -570,7 +612,7 @@ const LlamaStream = () => {
               gap: "8px"
             }}>
               {(() => {
-                const maxSlots = 5;
+                const maxSlots = 15;
                 const displayed = [...(generations.length > maxSlots
                   ? generations.slice(-maxSlots)
                   : generations)].reverse();
