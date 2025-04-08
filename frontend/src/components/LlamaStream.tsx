@@ -222,7 +222,7 @@ const LlamaStream = () => {
   });
 
   const [isPaused, setIsPaused] = useState(false);
-  const [currentContext, setCurrentContext] = useState(initialPrompt);
+  const [currentContext] = useState(initialPrompt);
 
   const togglePause = async () => {
     try {
