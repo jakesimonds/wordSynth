@@ -511,20 +511,6 @@ const LlamaStream = () => {
                 </div>
                 <div style={{ width: '100%' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                    <span>num_predict: </span>
-                    <span>{params.num_predict}</span>
-                  </div>
-                  <Slider
-                    min={4}
-                    max={128}
-                    step={4}
-                    value={params.num_predict}
-                    onChange={(value: number) => updateParameter("num_predict", value)}
-                    style={{ width: '100%' }}
-                  />
-                </div>
-                <div style={{ width: '100%' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                     <span>Repeat Penalty: </span>
                     <span>{params.repeat_penalty.toFixed(2)}</span>
                   </div>
@@ -562,6 +548,20 @@ const LlamaStream = () => {
                     step={0.05}
                     value={params.frequency_penalty}
                     onChange={(value: number) => updateParameter("frequency_penalty", value)}
+                    style={{ width: '100%' }}
+                  />
+                </div>
+                <div style={{ width: '100%' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <span>num_predict: </span>
+                    <span>{params.num_predict}</span>
+                  </div>
+                  <Slider
+                    min={4}
+                    max={128}
+                    step={4}
+                    value={params.num_predict}
+                    onChange={(value: number) => updateParameter("num_predict", value)}
                     style={{ width: '100%' }}
                   />
                 </div>
@@ -671,9 +671,9 @@ const LlamaStream = () => {
                               </>
                             )}
                             <span>repeat: {gen.params.repeat_penalty.toFixed(2)}</span>
-                            <span>tokens: {gen.params.num_predict}</span>
                             <span>presence: {gen.params.presence_penalty.toFixed(2)}</span>
                             <span>frequency: {gen.params.frequency_penalty.toFixed(2)}</span>
+                            <span>tokens: {gen.params.num_predict}</span>
                           </div>
                         </div>
                       </Card>
