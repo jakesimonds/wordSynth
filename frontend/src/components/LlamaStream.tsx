@@ -1,5 +1,6 @@
-import { useState, useEffect, useRef, useCallback } from "react";
-import { Slider, Space, Card, Skeleton, Select, Modal, Input, Button } from "antd";
+import { useState, useEffect, useRef } from "react";
+import { Slider, Space, Card, Skeleton, Select } from "antd";
+import { useLocation, Navigate } from 'react-router-dom';
 
 // Define API_BASE to handle both development and production environments
 const API_BASE = import.meta.env.DEV 
@@ -192,6 +193,14 @@ function useStreamingGenerations(params: Params, isPaused: boolean, currentConte
 }
 
 const LlamaStream = () => {
+  const location = useLocation();
+  const initialPrompt = location.state?.prompt;
+
+  // If no prompt was provided, redirect back to landing page
+  if (!initialPrompt) {
+    return <Navigate to="/" replace />;
+  }
+
   const [params, setParams] = useState<Params>({
     temperature: 0.7,
     top_p: 0.9,
@@ -213,9 +222,7 @@ const LlamaStream = () => {
   });
 
   const [isPaused, setIsPaused] = useState(false);
-  const [isModalVisible, setIsModalVisible] = useState(true);
-  const [inputPrompt, setInputPrompt] = useState("Repeat the word hello over and over again 100 times.");
-  const [currentContext, setCurrentContext] = useState<string>("");
+  const [currentContext, setCurrentContext] = useState(initialPrompt);
 
   const togglePause = async () => {
     try {
@@ -241,15 +248,10 @@ const LlamaStream = () => {
     }));
   };
 
-  const handleSubmitPrompt = useCallback(() => {
-    setCurrentContext(inputPrompt);
-    setIsModalVisible(false);
-  }, [inputPrompt]);
-
   const { generations, currentText } = useStreamingGenerations(
     params, 
     isPaused, 
-    currentContext || inputPrompt,
+    currentContext,
     voiceParams  // Pass voice parameters
   );
 
@@ -690,88 +692,6 @@ const LlamaStream = () => {
           </Card>
         </div>
       </div>
-
-      <Modal
-        title="Set Your Prompt"
-        open={isModalVisible}
-        closable={false}
-        maskClosable={false}
-        footer={[
-          <Button 
-            key="submit" 
-            type="primary" 
-            onClick={handleSubmitPrompt}
-            size="large"
-            style={{ padding: "0 40px", height: "50px", fontSize: "18px" }}
-          >
-            Start Generating
-          </Button>
-        ]}
-        width="100%"
-        style={{ 
-          top: 0,
-          padding: 0,
-          maxWidth: "100vw",
-          margin: 0,
-        }}
-        bodyStyle={{ 
-          height: "calc(100vh - 110px)", // Account for header and footer height
-          padding: "40px",
-          display: "flex",
-          flexDirection: "column",
-          justifyContent: "center",
-          alignItems: "center",
-        }}
-        wrapClassName="fullscreen-modal" // Add a class for additional styling
-      >
-        <div style={{ 
-          width: "80%",
-          maxWidth: "1000px",
-          display: "flex",
-          flexDirection: "column",
-          alignItems: "center",
-        }}>
-          <h1 style={{
-            fontSize: "36px",
-            marginBottom: "30px",
-            textAlign: "center",
-            fontWeight: "bold",
-          }}>
-            Welcome to Word Synth
-          </h1>
-          
-          <div style={{ 
-            marginBottom: "30px", 
-            fontSize: "18px",
-            color: "#555",
-            textAlign: "center",
-            width: "100%",
-          }}>
-            Enter the prompt you'd like to use for generation:
-          </div>
-          
-          <Input.TextArea
-            value={inputPrompt}
-            onChange={(e) => setInputPrompt(e.target.value)}
-            placeholder="Enter your prompt here..."
-            autoSize={{ minRows: 6, maxRows: 10 }}
-            style={{ 
-              fontSize: "18px",
-              width: "100%",
-              borderRadius: "8px",
-            }}
-          />
-          
-          <div style={{ 
-            marginTop: "20px", 
-            fontSize: "16px",
-            color: "#888",
-            textAlign: "center",
-          }}>
-            Click 'Start Generating' to begin
-          </div>
-        </div>
-      </Modal>
     </div>
   );
 };
