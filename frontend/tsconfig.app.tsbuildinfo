@@ -1,1 +1,1 @@
-{"root":["./src/app.tsx","./src/main.tsx","./src/vite-env.d.ts","./src/components/llamastream.tsx","./src/components/llamastream_old.tsx","./src/contexts/streamcontext.tsx"],"version":"5.6.3"}
+{"root":["./src/App.tsx","./src/main.tsx","./src/vite-env.d.ts","./src/components/LandingPage.tsx","./src/components/LlamaStream.tsx","./src/contexts/StreamContext.tsx"],"version":"5.6.3"}
