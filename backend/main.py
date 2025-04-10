@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Query, Response
+from fastapi import FastAPI, Query, Response, Request
 from fastapi.middleware.cors import CORSMiddleware
 from sse_starlette.sse import EventSourceResponse
 from typing import Dict
@@ -40,18 +40,9 @@ params = {
 # Add a lock for generation
 generation_lock = asyncio.Lock()
 
-# Add near the top with other globals
-PAUSE_STATE = {'is_paused': False}
-
-
-
-@app.get("/toggle-pause")
-async def toggle_pause():
-    PAUSE_STATE['is_paused'] = not PAUSE_STATE['is_paused']
-    return {"is_paused": PAUSE_STATE['is_paused']}
-
 @app.get("/stream")
 async def stream_text(
+    request: Request,
     context: str = Query(...),
     temperature: float = Query(0.4),
     top_p: float = Query(0.4),
@@ -64,9 +55,6 @@ async def stream_text(
     mirostat_tau: float = Query(5.0),
     mirostat_eta: float = Query(0.1),
 ):
-    if PAUSE_STATE['is_paused']:
-        return Response(status_code=204)  # 204 No Content
-
     async def event_generator():
         async with generation_lock:
             try:
