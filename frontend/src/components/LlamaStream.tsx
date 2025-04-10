@@ -224,14 +224,8 @@ const LlamaStream = () => {
   const [isPaused, setIsPaused] = useState(false);
   const [currentContext] = useState(initialPrompt);
 
-  const togglePause = async () => {
-    try {
-      const response = await fetch(`${API_BASE}/toggle-pause`);
-      const data = await response.json();
-      setIsPaused(data.is_paused);
-    } catch (error) {
-      console.error('Failed to toggle pause state:', error);
-    }
+  const togglePause = () => {
+    setIsPaused(prevPaused => !prevPaused);
   };
 
   const updateParameter = (paramName: keyof Params, value: number) => {
