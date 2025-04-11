@@ -549,7 +549,7 @@ const LlamaStream = () => {
                 </div>
                 <div style={{ width: '100%' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                    <span>num_predict: </span>
+                    <span>Tokens to Generate: </span>
                     <span>{params.num_predict}</span>
                   </div>
                   <Slider
