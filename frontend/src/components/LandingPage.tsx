@@ -25,51 +25,58 @@ const LandingPage = () => {
       display: "flex",
       flexDirection: "column",
       alignItems: "center",
-      justifyContent: "center",
       background: "linear-gradient(45deg, #2b1331, #000000)",
       padding: "1rem",
       boxSizing: "border-box",
-      overflow: "hidden"
+      overflow: "auto"
     }}>
-      <h1 style={{
-        margin: "1rem 0",
-        fontSize: "clamp(2.5rem, 8vw, 4.5rem)", // Responsive font size
-        fontFamily: "'Press Start 2P', system-ui",
-        background: "linear-gradient(45deg, #e100ff, #7700ff)",
-        WebkitBackgroundClip: "text",
-        WebkitTextFillColor: "transparent",
-        textShadow: "0 0 20px rgba(231,0,255,0.5)",
-        letterSpacing: "0.2em",
-        textAlign: "center"
-      }}>
-        WORD SYNTH
-      </h1>
-
       <div style={{
-        width: "95vw",
-        //maxWidth: "500px", // Slightly reduced max-width
+        width: "100%",
+        maxWidth: "1200px",
         background: "rgba(255, 255, 255, 0.95)",
         borderRadius: "16px",
-        padding: "1.5rem", // Reduced padding
+        padding: "2rem",
         boxShadow: "0 8px 32px rgba(0, 0, 0, 0.2)",
         display: "flex",
         flexDirection: "column",
-        gap: "1rem", // Reduced gap
-        boxSizing: "border-box"
+        gap: "1.5rem",
+        boxSizing: "border-box",
+        marginTop: "1rem"
       }}>
         <div style={{
-          fontSize: "clamp(1rem, 4vw, 1.5rem)", // Responsive font size
+          fontSize: "1.2rem",
           color: "#333",
-          textAlign: "center",
+          textAlign: "left",
           lineHeight: "1.6"
         }}>
-          Welcome to Word Synth, where text meets voice in real-time synthesis.
+          <div style={{
+            fontSize: "1.8rem",
+            fontWeight: "bold",
+            marginBottom: "1rem",
+            color: "#7700ff"
+          }}>
+            WORD SYNTH
+          </div>
+          
+          Just like a synthesizer allows you to manipulate sound in real time with knobs and sliders, word synth lets you manipulate generations of a Llama3.2 1B model in real time via exposed sampling parameters.
+
+          <p style={{ marginTop: "1rem", marginBottom: "0.5rem" }}>Things to Try:</p>
+          <ul style={{ 
+            paddingLeft: "1.5rem",
+            marginBottom: "1rem"
+          }}>
+            <li>Set temp, top_p or top_k all the way down and see it become deterministic.</li>
+            <li>Set top_k to 2 and observe that you only see two first tokens</li>
+            <li>Tell the model to say something over and over again and then adjust the presence or repeat Penalty</li>
+            <li>See if you can 'crash' the model into giving you nonsense</li>
+          </ul>
+
         </div>
 
         <div style={{
-          fontSize: "clamp(1rem, 4vw, 1.2rem)", // Responsive font size
+          fontSize: "1rem",
           color: "#555",
-          textAlign: "center",
+          textAlign: "left",
           marginBottom: "0.5rem"
         }}>
           Enter your prompt to begin:
@@ -80,9 +87,9 @@ const LandingPage = () => {
           onChange={(e) => setInputPrompt(e.target.value)}
           onKeyDown={handleKeyPress}
           placeholder="Enter your prompt here..."
-          autoSize={{ minRows: 4, maxRows: 8 }} // Adjusted for mobile
+          autoSize={{ minRows: 4, maxRows: 8 }}
           style={{
-            fontSize: "clamp(1rem, 4vw, 1.2rem)", // Responsive font size
+            fontSize: "1rem",
             borderRadius: "8px",
             border: "2px solid #e100ff33",
             width: "100%",
@@ -95,8 +102,8 @@ const LandingPage = () => {
           onClick={handleStart}
           size="large"
           style={{
-            height: "50px", // Slightly smaller on mobile
-            fontSize: "clamp(1rem, 4vw, 1.4rem)", // Responsive font size
+            height: "50px",
+            fontSize: "1.2rem",
             background: "linear-gradient(45deg, #e100ff, #7700ff)",
             border: "none",
             borderRadius: "8px",
@@ -104,12 +111,12 @@ const LandingPage = () => {
             width: "100%"
           }}
         >
-          Start Generating
+          START
         </Button>
 
         <div style={{
           display: "flex",
-          justifyContent: "center",
+          justifyContent: "flex-start",
           gap: "1rem",
           marginTop: "0.5rem"
         }}>
@@ -118,9 +125,9 @@ const LandingPage = () => {
             target="_blank"
             rel="noopener noreferrer"
             style={{
-              color: "#b19dd8",
+              color: "#7700ff",
               textDecoration: "none",
-              fontSize: "clamp(0.8rem, 3vw, 1.1rem)", // Responsive font size
+              fontSize: "0.9rem",
               transition: "color 0.2s"
             }}
           >
@@ -131,9 +138,9 @@ const LandingPage = () => {
             target="_blank"
             rel="noopener noreferrer"
             style={{
-              color: "#b19dd8",
+              color: "#7700ff",
               textDecoration: "none",
-              fontSize: "clamp(0.8rem, 3vw, 1.1rem)", // Responsive font size
+              fontSize: "0.9rem",
               transition: "color 0.2s"
             }}
           >
