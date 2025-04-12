@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { Button, Select } from "antd";
+import { Button, Select, Switch } from "antd";
 
 const LandingPage = () => {
   // Predefined options
@@ -23,6 +23,7 @@ const LandingPage = () => {
   const [inputPrompt, setInputPrompt] = useState(promptOptions[0]);
   const [hotWord, setHotWord] = useState(hotWordOptions[0]);
   const [isMobile, setIsMobile] = useState(false);
+  const [continuousMode, setContinuousMode] = useState(false);
   const navigate = useNavigate();
 
   // Detect if device is mobile
@@ -37,8 +38,14 @@ const LandingPage = () => {
   }, []);
 
   const handleStart = () => {
-    // Navigate to the main app with the prompt and hot word as states
-    navigate('/app', { state: { prompt: inputPrompt, hotWord } });
+    // Navigate to the main app with the prompt, hot word, and continuous mode as states
+    navigate('/app', { 
+      state: { 
+        prompt: inputPrompt, 
+        hotWord,
+        continuousMode
+      } 
+    });
   };
 
   return (
@@ -170,6 +177,36 @@ const LandingPage = () => {
         }}>
           You'll be able to adjust the probability of this token with a slider. 
         </small>
+
+        <div style={{
+          marginTop: isMobile ? "0.5rem" : "1rem",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          width: "100%"
+        }}>
+          <span style={{ 
+            fontSize: isMobile ? "0.9rem" : "1.1rem",
+            color: "#555" 
+          }}>
+            <b>Continuous Streaming Mode:</b>
+          </span>
+          <Switch 
+            checked={continuousMode}
+            onChange={setContinuousMode}
+            checkedChildren="On"
+            unCheckedChildren="Off"
+          />
+        </div>
+        
+        <div style={{
+          fontSize: "0.8em", 
+          color: "#666", 
+          marginTop: "4px",
+          marginBottom: isMobile ? "0.5rem" : "1rem"
+        }}>
+          When enabled, new text is generated continuously using previous output as context.
+        </div>
 
         <Button
           type="primary"

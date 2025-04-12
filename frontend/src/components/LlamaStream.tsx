@@ -1,5 +1,5 @@
-import { useState, useEffect, useRef } from "react";
-import { Slider, Space, Card, Skeleton, Select } from "antd";
+import { useState, useEffect, useRef, useCallback } from "react";
+import { Slider, Space, Card, Skeleton, Select, Switch, Button } from "antd";
 import { useLocation, Navigate, useNavigate } from 'react-router-dom';
 
 // Define API_BASE to handle both development and production environments
@@ -70,28 +70,33 @@ interface GeneratedToken {
 function useStreamingGenerations(
   params: Params, 
   isPaused: boolean, 
-  currentContext: string, 
+  initialContext: string, 
   voiceParams: VoiceParams,
-  hotWord: string  // Add hotWord parameter
+  hotWord: string,
+  continuousMode: boolean,
+  setGenerations: React.Dispatch<React.SetStateAction<Generation[]>>,
+  colors: string[]
 ) {
-  const [generations, setGenerations] = useState<Generation[]>([]);
   const [currentText, setCurrentText] = useState("");
   const [currentTokens, setCurrentTokens] = useState<GeneratedToken[]>([]);
   const [isConnected, setIsConnected] = useState(false);
   const eventSourceRef = useRef<EventSource | null>(null);
   const currentTextRef = useRef(currentText);
   const currentTokensRef = useRef<GeneratedToken[]>([]);
+  const [currentContext, setCurrentContext] = useState(initialContext);
+  const [streamText, setStreamText] = useState(""); // Store the entire generated text
+  const streamTextRef = useRef("");
 
-  // Keep the refs updated with the latest values
+  // When continuous mode changes, update the context
   useEffect(() => {
-    currentTextRef.current = currentText;
-  }, [currentText]);
-
-  useEffect(() => {
-    currentTokensRef.current = currentTokens;
-  }, [currentTokens]);
-
-  const colors = ["#FF5733", "#33FF57", "#3357FF", "#F833FF", "#33FFF8"];
+    if (continuousMode) {
+      // In continuous mode, use the complete text as context for future generations
+      setCurrentContext(initialContext + "\n" + streamTextRef.current);
+    } else {
+      // In regular mode, just use the initial prompt
+      setCurrentContext(initialContext);
+    }
+  }, [continuousMode, initialContext]);
 
   // Update the speakText function to use voice parameters
   const speakText = (text: string) => {
@@ -130,7 +135,7 @@ function useStreamingGenerations(
 
   // handleGenerate resets current text and connects to the stream,
   // including the current parameter values in the query string.
-  const handleGenerate = () => {
+  const handleGenerate = useCallback(() => {
     // Reset the current text and tokens
     currentTextRef.current = "";
     setCurrentText("");
@@ -179,6 +184,12 @@ function useStreamingGenerations(
       currentTextRef.current += event.data;
       setCurrentText(currentTextRef.current);
       
+      // In continuous mode, append to the complete text
+      if (continuousMode) {
+        streamTextRef.current += event.data;
+        setStreamText(streamTextRef.current);
+      }
+      
       // Speak the new chunk of text as it arrives
       if (event.data.trim()) {
         speakText(event.data);
@@ -204,18 +215,25 @@ function useStreamingGenerations(
     });
 
     eventSource.addEventListener("done", () => {
-      // Save the completed generation in past responses.
-      setGenerations((prev) => {
-        const newGeneration: Generation = {
-          text: currentTextRef.current,
-          color: colors[prev.length % colors.length],
-          params: {
-            ...params,  // Include all model parameters
-          },
-          tokens: currentTokensRef.current  // Store the tokens with their data
-        };
-        return [...prev, newGeneration];
-      });
+      // Save the generated text to our history
+      if (!continuousMode) {
+        const randomColorIndex = Math.floor(Math.random() * colors.length);
+        setGenerations(prev => [
+          ...prev, 
+          {
+            text: currentTextRef.current,
+            color: colors[randomColorIndex],
+            params: { ...params },
+            tokens: [...currentTokensRef.current]
+          }
+        ]);
+      }
+      
+      // In continuous mode, update the context for the next generation
+      if (continuousMode) {
+        setCurrentContext(initialContext + "\n" + streamTextRef.current);
+      }
+      
       eventSource.close();
       eventSourceRef.current = null;
       setIsConnected(false);
@@ -227,7 +245,7 @@ function useStreamingGenerations(
       eventSourceRef.current = null;
       setIsConnected(false);
     });
-  };
+  }, [currentContext, params, hotWord, continuousMode, initialContext, voiceParams, colors, setGenerations]);
 
   //Clean up speech when component unmounts
   useEffect(() => {
@@ -241,15 +259,22 @@ function useStreamingGenerations(
   // Modify the auto-generation effect
   useEffect(() => {
     const pollInterval = 500;
-    if (!isConnected && !isPaused) {
+    if (!isConnected && !isPaused && continuousMode) {
       const timer = setTimeout(() => {
         handleGenerate();
       }, pollInterval);
       return () => clearTimeout(timer);
     }
-  }, [isConnected, isPaused, handleGenerate]);
+  }, [isConnected, isPaused, continuousMode, handleGenerate]);
 
-  return { generations, currentText, currentTokens, isConnected, handleGenerate };
+  return { 
+    currentText, 
+    currentTokens, 
+    isConnected, 
+    handleGenerate,
+    currentContext,
+    streamText
+  };
 }
 
 // Add this component to display tokens with probabilities
@@ -319,31 +344,50 @@ const TokenDisplay = ({ token, enableHover }: { token: GeneratedToken; enableHov
 };
 
 // Create a component to display the whole token sequence
-const TokenizedText = ({ tokens, enableHover }: { tokens: GeneratedToken[]; enableHover: boolean }) => {
-  if (!tokens || tokens.length === 0) {
-    return <span></span>;
+const TokenizedText = ({ 
+  tokens, 
+  enableHover,
+  text = ""
+}: { 
+  tokens: GeneratedToken[]; 
+  enableHover: boolean;
+  text?: string;
+}) => {
+  if (tokens.length > 0) {
+    return (
+      <div>
+        {tokens.map((token, idx) => (
+          <TokenDisplay key={idx} token={token} enableHover={enableHover} />
+        ))}
+      </div>
+    );
+  } else if (text) {
+    // If no tokens but text is provided, display the text
+    return <div>{text}</div>;
   }
   
-  return (
-    <div>
-      {tokens.map((token, idx) => (
-        <TokenDisplay key={idx} token={token} enableHover={enableHover} />
-      ))}
-    </div>
-  );
+  return <span></span>;
 };
 
 const LlamaStream = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const initialPrompt = location.state?.prompt;
-  const initialHotWord = location.state?.hotWord || 'the'; // Get hot word from navigation state
+  const initialHotWord = location.state?.hotWord || 'the';
+  const initialContinuousMode = location.state?.continuousMode || false;
 
   // If no prompt was provided, redirect back to landing page
   if (!initialPrompt) {
     return <Navigate to="/" replace />;
   }
 
+  // State for past generations
+  const [generations, setGenerations] = useState<Generation[]>([]);
+  
+  // State for continuous streaming
+  const [continuousMode, setContinuousMode] = useState(initialContinuousMode);
+  const completeTextRef = useRef("");
+  
   const [params, setParams] = useState<Params>({
     temperature: 0.7,
     top_p: 0.9,
@@ -366,8 +410,10 @@ const LlamaStream = () => {
   });
 
   const [isPaused, setIsPaused] = useState(false);
-  const [currentContext] = useState(initialPrompt);
   const [hotWord] = useState(initialHotWord);
+  
+  // Colors for generation history
+  const colors = ["#FF5733", "#33FF57", "#3357FF", "#F833FF", "#33FFF8"];
 
   const togglePause = () => {
     setIsPaused(prevPaused => !prevPaused);
@@ -387,12 +433,22 @@ const LlamaStream = () => {
     }));
   };
 
-  const { generations, currentText, currentTokens, isConnected } = useStreamingGenerations(
+  const { 
+    currentText, 
+    currentTokens, 
+    isConnected, 
+    handleGenerate,
+    currentContext,
+    streamText: completeText
+  } = useStreamingGenerations(
     params, 
     isPaused, 
-    currentContext,
+    initialPrompt,
     voiceParams,
-    hotWord
+    hotWord,
+    continuousMode,
+    setGenerations,
+    colors
   );
 
   const isMirostatEnabled = params.mirostat_mode > 0;
@@ -400,6 +456,12 @@ const LlamaStream = () => {
   // Add a function to handle click on the header
   const handleHeaderClick = () => {
     navigate('/');  // Navigate to the landing page
+  };
+
+  // Additional function to clear the complete text
+  const handleClearText = () => {
+    completeTextRef.current = "";
+    setGenerations([]);
   };
 
   return (
@@ -596,6 +658,35 @@ const LlamaStream = () => {
               </Space>
             </Card>
 
+            <Card title="Generation Mode">
+              <Space direction="vertical" style={{ width: '100%' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span>Continuous Stream: </span>
+                  <Switch 
+                    checked={continuousMode}
+                    onChange={setContinuousMode}
+                    checkedChildren="On"
+                    unCheckedChildren="Off"
+                  />
+                </div>
+                <div style={{ fontSize: '0.8em', color: '#666', marginTop: '4px' }}>
+                  {continuousMode ? 
+                    "Generating continuously using previous output as context." : 
+                    "Each generation starts fresh with the original prompt."}
+                </div>
+                
+                {continuousMode && (
+                  <Button 
+                    onClick={handleClearText} 
+                    style={{ marginTop: '8px' }}
+                    danger
+                  >
+                    Clear Stream
+                  </Button>
+                )}
+              </Space>
+            </Card>
+
             <button
               onClick={togglePause}
               style={{
@@ -626,105 +717,139 @@ const LlamaStream = () => {
             minHeight: 0,
           }}
         >
-          <Card 
-            title="Current Response" 
-            style={{ 
-              height: "300px",
-              marginBottom: "16px"
-            }}
-          >
-            <div style={{
-              height: "250px",
-              wordWrap: "break-word",
-              whiteSpace: "pre-wrap",
-              overflow: "auto"
-            }}>
-              {currentTokens.length > 0 ? (
-                <TokenizedText tokens={currentTokens} enableHover={true} />
-              ) : (
-                currentText
-              )}
-            </div>
-          </Card>
+          {continuousMode ? (
+            <Card 
+              title="Continuous Stream" 
+              style={{ 
+                flex: 1,
+                display: "flex",
+                flexDirection: "column",
+                overflow: "hidden"
+              }}
+            >
+              <div style={{
+                flex: 1,
+                wordWrap: "break-word",
+                whiteSpace: "pre-wrap",
+                overflow: "auto",
+                padding: '8px',
+              }}>
+                {completeText ? (
+                  <TokenizedText 
+                    tokens={currentTokens.length > 0 ? currentTokens : []}
+                    enableHover={true} 
+                    text={completeText}
+                  />
+                ) : (
+                  <div style={{ color: '#999', fontStyle: 'italic' }}>
+                    Streaming will begin when you resume...
+                  </div>
+                )}
+              </div>
+            </Card>
+          ) : (
+            <>
+              <Card 
+                title="Current Response" 
+                style={{ 
+                  height: "300px",
+                  marginBottom: "16px"
+                }}
+              >
+                <div style={{
+                  height: "250px",
+                  wordWrap: "break-word",
+                  whiteSpace: "pre-wrap",
+                  overflow: "auto"
+                }}>
+                  {currentTokens.length > 0 ? (
+                    <TokenizedText tokens={currentTokens} enableHover={true} />
+                  ) : (
+                    currentText
+                  )}
+                </div>
+              </Card>
 
-          <Card 
-            title="Past Responses"
-            style={{
-              flex: 1,
-              overflow: "auto",
-              minHeight: 0
-            }}
-          >
-            <div style={{
-              display: "flex",
-              flexDirection: "column",
-              gap: "8px"
-            }}>
-              {(() => {
-                const maxSlots = 15;
-                const displayed = [...(generations.length > maxSlots
-                  ? generations.slice(-maxSlots)
-                  : generations)].reverse();
-                const fillerCount = maxSlots - displayed.length;
-                return (
-                  <>
-                    {displayed.map((gen, idx) => (
-                      <Card
-                        key={`real-${idx}`}
-                        style={{
-                          borderLeft: `4px solid ${gen.color}`,
-                          marginBottom: 8,
-                        }}
-                      >
-                        <div style={{
-                          wordWrap: "break-word",
-                          whiteSpace: "pre-wrap"
-                        }}>
-                          {gen.tokens && gen.tokens.length > 0 ? (
-                            <TokenizedText tokens={gen.tokens} enableHover={true} />
-                          ) : (
-                            gen.text
-                          )}
-                        </div>
-                        <div style={{
-                          marginTop: '8px',
-                          padding: '8px',
-                          borderTop: '1px solid #eee',
-                          fontSize: '0.85em',
-                          color: '#666',
-                        }}>
-                          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
-                            <span>temp: {gen.params.temperature.toFixed(2)}</span>
-                            {gen.params.mirostat_mode > 0 ? (
-                              <>
-                                <span>mirostat: {gen.params.mirostat_mode}</span>
-                                <span>tau: {gen.params.mirostat_tau.toFixed(1)}</span>
-                                <span>eta: {gen.params.mirostat_eta.toFixed(3)}</span>
-                              </>
-                            ) : (
-                              <>
-                                <span>top_p: {gen.params.top_p.toFixed(2)}</span>
-                                <span>top_k: {gen.params.top_k}</span>
-                              </>
-                            )}
-                            <span>repeat: {gen.params.repeat_penalty.toFixed(2)}</span>
-                            <span>presence: {gen.params.presence_penalty.toFixed(2)}</span>
-                            <span>frequency: {gen.params.frequency_penalty.toFixed(2)}</span>
-                            <span>tokens: {gen.params.num_predict}</span>
-                          </div>
-                        </div>
-                      </Card>
-                    ))}
-                    {Array.from({ length: fillerCount }).map((_, idx) => (
-                      <Card key={`filler-${idx}`} style={{ marginBottom: 8 }}>
-                        <Skeleton active paragraph={{ rows: 2 }} />
-                      </Card>
-                    ))}
-                  </>
-                );
-              })()}
-            </div>
-          </Card>
+              <Card 
+                title="Past Responses"
+                style={{
+                  flex: 1,
+                  overflow: "auto",
+                  minHeight: 0
+                }}
+              >
+                <div style={{
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: "8px"
+                }}>
+                  {(() => {
+                    const maxSlots = 15;
+                    const displayed = [...(generations.length > maxSlots
+                      ? generations.slice(-maxSlots)
+                      : generations)].reverse();
+                    const fillerCount = maxSlots - displayed.length;
+                    return (
+                      <>
+                        {displayed.map((gen, idx) => (
+                          <Card
+                            key={`real-${idx}`}
+                            style={{
+                              borderLeft: `4px solid ${gen.color}`,
+                              marginBottom: 8,
+                            }}
+                          >
+                            <div style={{
+                              wordWrap: "break-word",
+                              whiteSpace: "pre-wrap"
+                            }}>
+                              {gen.tokens && gen.tokens.length > 0 ? (
+                                <TokenizedText tokens={gen.tokens} enableHover={true} />
+                              ) : (
+                                gen.text
+                              )}
+                            </div>
+                            <div style={{
+                              marginTop: '8px',
+                              padding: '8px',
+                              borderTop: '1px solid #eee',
+                              fontSize: '0.85em',
+                              color: '#666',
+                            }}>
+                              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+                                <span>temp: {gen.params.temperature.toFixed(2)}</span>
+                                {gen.params.mirostat_mode > 0 ? (
+                                  <>
+                                    <span>mirostat: {gen.params.mirostat_mode}</span>
+                                    <span>tau: {gen.params.mirostat_tau.toFixed(1)}</span>
+                                    <span>eta: {gen.params.mirostat_eta.toFixed(3)}</span>
+                                  </>
+                                ) : (
+                                  <>
+                                    <span>top_p: {gen.params.top_p.toFixed(2)}</span>
+                                    <span>top_k: {gen.params.top_k}</span>
+                                  </>
+                                )}
+                                <span>repeat: {gen.params.repeat_penalty.toFixed(2)}</span>
+                                <span>presence: {gen.params.presence_penalty.toFixed(2)}</span>
+                                <span>frequency: {gen.params.frequency_penalty.toFixed(2)}</span>
+                                <span>tokens: {gen.params.num_predict}</span>
+                              </div>
+                            </div>
+                          </Card>
+                        ))}
+                        {Array.from({ length: fillerCount }).map((_, idx) => (
+                          <Card key={`filler-${idx}`} style={{ marginBottom: 8 }}>
+                            <Skeleton active paragraph={{ rows: 2 }} />
+                          </Card>
+                        ))}
+                      </>
+                    );
+                  })()}
+                </div>
+              </Card>
+            </>
+          )}
         </div>
 
         <div 
