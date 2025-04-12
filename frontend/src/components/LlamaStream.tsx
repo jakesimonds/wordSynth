@@ -1,6 +1,8 @@
 import { useState, useEffect, useRef } from "react";
-import { Slider, Space, Card, Skeleton, Select } from "antd";
+import { Slider, Space, Card, Skeleton, Select, Switch } from "antd";
 import { useLocation, Navigate, useNavigate } from 'react-router-dom';
+// Import the Help component
+import Help from './Help';
 
 // Define API_BASE to handle both development and production environments
 const API_BASE = import.meta.env.DEV 
@@ -262,20 +264,23 @@ const TokenDisplay = ({ token, enableHover }: { token: GeneratedToken; enableHov
       style={{ 
         position: 'relative',
         display: 'inline-block',
+        textAlign: 'center',
+        margin: '0 2px'
       }}
       onMouseEnter={enableHover ? () => setShowTooltip(true) : undefined}
       onMouseLeave={enableHover ? () => setShowTooltip(false) : undefined}
     >
-      <span>
-        {token.text}
-        <sub style={{ 
+      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+        <span>{token.text}</span>
+        <span style={{ 
           fontSize: '0.6em', 
-          color: '#888', 
-          marginLeft: '1px' 
+          color: '#888',
+          display: 'block',
+          lineHeight: '1'
         }}>
           {Math.round(token.data.prob * 100)}%
-        </sub>
-      </span>
+        </span>
+      </div>
       
       {showTooltip && (
         <div style={{
@@ -400,6 +405,18 @@ const LlamaStream = () => {
   // Add a function to handle click on the header
   const handleHeaderClick = () => {
     navigate('/');  // Navigate to the landing page
+  };
+
+  // Add state for help modal
+  const [isHelpModalVisible, setIsHelpModalVisible] = useState(false);
+  
+  // Add functions to handle the modal
+  const showHelpModal = () => {
+    setIsHelpModalVisible(true);
+  };
+
+  const handleHelpModalClose = () => {
+    setIsHelpModalVisible(false);
   };
 
   return (
@@ -601,7 +618,7 @@ const LlamaStream = () => {
               style={{
                 width: "100%",
                 padding: "12px",
-                marginBottom: "26px",
+                marginBottom: "12px", // Changed from 26px to add space for help button
                 fontSize: "28px",
                 backgroundColor: isPaused ? "#4CAF50" : "#f44336",
                 color: "white",
@@ -611,6 +628,24 @@ const LlamaStream = () => {
               }}
             >
               {isPaused ? "Resume" : "Pause"}
+            </button>
+            
+            {/* Add Help Button */}
+            <button
+              onClick={showHelpModal}
+              style={{
+                width: "100%",
+                padding: "12px",
+                marginBottom: "26px",
+                fontSize: "28px",
+                backgroundColor: "#007bff",
+                color: "white",
+                border: "none",
+                borderRadius: "4px",
+                cursor: "pointer"
+              }}
+            >
+              ?
             </button>
           </Space>
         </div>
@@ -925,6 +960,12 @@ const LlamaStream = () => {
           </Card>
         </div>
       </div>
+      
+      {/* Add the Help component */}
+      <Help 
+        isVisible={isHelpModalVisible}
+        onClose={handleHelpModalClose}
+      />
     </div>
   );
 };
