@@ -137,8 +137,8 @@ def get_token_id(text: str) -> tuple:
         return None, []  # Tokenization failed
 
 # Keep the default for when no hot word is provided
-DEFAULT_HOT_WORD = "the"
-DEFAULT_HOT_WORD_ID = 1820  # Known token ID for "the"
+#DEFAULT_HOT_WORD = "the"
+#DEFAULT_HOT_WORD_ID = 1820  # Known token ID for "the"
 
 # Improved token identification for the hot word
 def get_hot_word_token(word: str) -> int:
@@ -218,14 +218,14 @@ async def startup_event():
     vocab = llama_cpp.llama_model_get_vocab(model)  # Retrieve the vocabulary
     
     # Use the hardcoded hot word ID
-    global DEFAULT_HOT_WORD_ID
+    #global DEFAULT_HOT_WORD_ID
     # No need to tokenize - we hardcoded it above
-    print(f"Using hardcoded token ID for '{DEFAULT_HOT_WORD}': {DEFAULT_HOT_WORD_ID}")
+    #print(f"Using hardcoded token ID for '{DEFAULT_HOT_WORD}': {DEFAULT_HOT_WORD_ID}")
     
     # Verify it's correct
-    hot_word_bytes = llama_cpp.llama_vocab_get_text(vocab, DEFAULT_HOT_WORD_ID)
-    hot_word_text = hot_word_bytes.decode('utf-8', errors='replace').replace('Ġ', ' ').replace('Ċ', '\n')
-    print(f"Token text for ID {DEFAULT_HOT_WORD_ID}: '{hot_word_text}'")
+    #hot_word_bytes = llama_cpp.llama_vocab_get_text(vocab, DEFAULT_HOT_WORD_ID)
+    #hot_word_text = hot_word_bytes.decode('utf-8', errors='replace').replace('Ġ', ' ').replace('Ċ', '\n')
+    #print(f"Token text for ID {DEFAULT_HOT_WORD_ID}: '{hot_word_text}'")
 
 @app.get("/stream")
 async def stream_text(
