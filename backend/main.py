@@ -9,6 +9,7 @@ import math
 import ctypes
 import llama_cpp
 import random
+import json
 
 # C Bindings setup
 lib_path = "/Users/jakesimonds/.pyenv/versions/3.11.11/lib/python3.11/site-packages/llama_cpp/lib/libllama.dylib"
@@ -25,7 +26,7 @@ except Exception as e:
         print(f"Successfully loaded C library from {abs_path}")
     except Exception as e2:
         print(f"Failed second attempt: {e2}")
-        exit(1)
+    exit(1)
 
 # Define logit-related functions
 llama_get_logits = lib.llama_get_logits
@@ -130,10 +131,7 @@ async def stream_text(
                 print(f"Tokenization complete. Number of tokens: {n_tokens}")
 
                 if n_tokens == 0:
-                    yield {
-                        "event": "error",
-                        "data": "No tokens generated from tokenization."
-                    }
+                    yield {"event": "error", "data": "No tokens generated from tokenization."}
                     return
 
                 # Create and prepare the batch
@@ -158,10 +156,7 @@ async def stream_text(
                 print(f"Decode result: {ret}, batch n_tokens: {batch.n_tokens}")
                 
                 if ret != 0:
-                    yield {
-                        "event": "error",
-                        "data": f"Decode failed with return code {ret}"
-                    }
+                    yield {"event": "error", "data": f"Decode failed with return code {ret}"}
                     # Clean up resources
                     llama_cpp.llama_batch_free(batch)
                     llama_cpp.llama_kv_cache_clear(ctx)
@@ -191,33 +186,56 @@ async def stream_text(
                                 if token_id < n_vocab:
                                     logits[token_id] /= repeat_penalty
                         
-                        # Handle top_k=1 or temperature=0 cases as purely deterministic
+                        # First convert the raw logits to probabilities for display
+                        max_logit = max(logits)
+                        exp_logits = [math.exp(logit - max_logit) for logit in logits]
+                        sum_exp_logits = sum(exp_logits)
+                        raw_probs = [exp_logit / sum_exp_logits for exp_logit in exp_logits]
+                        
+                        # Get the top 5 tokens by raw probability BEFORE token selection
+                        top5_indices = sorted(range(n_vocab), key=lambda i: raw_probs[i], reverse=True)[:5]
+                        top5_probs = [raw_probs[i] for i in top5_indices]
+                        top5_tokens = [llama_cpp.llama_vocab_get_text(vocab, i).decode('utf-8', errors='replace') for i in top5_indices]
+                        top5_clean = [t.replace('Ġ', ' ').replace('Ċ', '\n') for t in top5_tokens]
+                        
+                        # Build array of top 5 tokens for frontend
+                        top5_data = [
+                            {
+                                "text": text,
+                                "id": int(idx),
+                                "prob": float(prob)  # Convert to Python float for JSON serialization
+                            } for text, idx, prob in zip(top5_clean, top5_indices, top5_probs)
+                        ]
+                        
+                        # Now proceed with token selection based on parameters
                         if top_k == 1 or temperature <= 0.0:
-                            next_token_id = max(range(n_vocab), key=lambda i: logits[i])
+                            # Deterministic selection - just pick the highest probability token
+                            next_token_id = top5_indices[0]  # The first token is the most likely
+                            sel_prob = top5_probs[0]
                         else:
-                            # Apply temperature to logits
+                            # Apply temperature to logits for sampling
                             for i in range(n_vocab):
                                 logits[i] /= temperature
                             
-                            # Convert logits to probabilities with softmax
-                            max_logit = max(logits)
-                            exp_logits = [math.exp(logit - max_logit) for logit in logits]
-                            sum_exp_logits = sum(exp_logits)
-                            probs = [exp_logit / sum_exp_logits for exp_logit in exp_logits]
+                            # Convert to temperature-adjusted probabilities
+                            max_temp_logit = max(logits)
+                            exp_temp_logits = [math.exp(logit - max_temp_logit) for logit in logits]
+                            sum_exp_temp_logits = sum(exp_temp_logits)
+                            temp_probs = [exp_logit / sum_exp_temp_logits for exp_logit in exp_temp_logits]
                             
                             # Apply top-k filtering
                             if top_k < n_vocab:
-                                indices_and_probs = [(i, p) for i, p in enumerate(probs)]
+                                indices_and_probs = [(i, p) for i, p in enumerate(temp_probs)]
                                 indices_and_probs.sort(key=lambda x: x[1], reverse=True)
                                 indices_and_probs = indices_and_probs[:top_k]
                                 top_indices = [idx for idx, _ in indices_and_probs]
-                                top_probs = [probs[idx] for idx in top_indices]
+                                top_probs = [temp_probs[idx] for idx in top_indices]
                                 # Renormalize probabilities
                                 sum_top_probs = sum(top_probs)
                                 top_probs = [p / sum_top_probs for p in top_probs]
                             else:
                                 top_indices = list(range(n_vocab))
-                                top_probs = probs
+                                top_probs = temp_probs
                             
                             # Apply top-p (nucleus) sampling
                             if 0.0 < top_p < 1.0:
@@ -231,7 +249,7 @@ async def stream_text(
                                         break
                                 indices_and_probs = indices_and_probs[:cutoff_index]
                                 top_indices = [idx for idx, _ in indices_and_probs]
-                                top_probs = [probs[idx] for idx in top_indices]
+                                top_probs = [temp_probs[idx] for idx in top_indices]
                                 # Renormalize probabilities
                                 sum_top_probs = sum(top_probs)
                                 top_probs = [p / sum_top_probs for p in top_probs]
@@ -247,6 +265,7 @@ async def stream_text(
                                     break
                             
                             next_token_id = top_indices[next_token_index]
+                            sel_prob = raw_probs[next_token_id]  # Get the raw probability of the selected token
                         
                         # Get token text using llama_vocab_get_text
                         token_bytes = llama_cpp.llama_vocab_get_text(vocab, next_token_id)
@@ -262,12 +281,29 @@ async def stream_text(
                         # Build up the running text
                         generated_text += clean_text
                         
-                        print(f"Generated token {token_idx+1}/{num_predict}: {next_token_id} ('{clean_text}')")
-                        
-                        yield {
-                            "event": "message",
-                            "data": clean_text
+                        # Create the data structure for the frontend
+                        token_data = {
+                            "text": clean_text,
+                            "id": int(next_token_id),
+                            "prob": float(sel_prob),
+                            "top5": top5_data
                         }
+                        
+                        # Convert to JSON string for the event data
+                        json_data = json.dumps(token_data)
+                        
+                        # Print for server-side logging
+                        print(f"\nToken {token_idx+1}/{num_predict}:")
+                        print(f"Selected: '{clean_text}' (ID: {next_token_id}, Prob: {sel_prob:.4f})")
+                        print("Top 5 candidates:")
+                        for i, item in enumerate(top5_data):
+                            print(f"  {i+1}. '{item['text']}' (ID: {item['id']}, Prob: {item['prob']:.4f})")
+                        
+                        # Send the plain text for compatibility
+                        yield {"event": "message", "data": clean_text}
+                        
+                        # Send the detailed token data as a separate event
+                        yield {"event": "token_data", "data": json_data}
                         
                         # Update the context with the new token
                         last_tokens.append(next_token_id)
@@ -296,17 +332,11 @@ async def stream_text(
                         
                     except Exception as e:
                         print(f"Error generating token {token_idx+1}: {str(e)}")
-                        yield {
-                            "event": "message",
-                            "data": f" [error: {str(e)}] "
-                        }
+                        yield {"event": "error", "data": str(e)}
                         break
 
-                print(f"Generated full text: {generated_text}")
-                yield {
-                    "event": "done",
-                    "data": "complete"
-                }
+                print(f"\nGenerated full text: {generated_text}")
+                yield {"event": "done", "data": "complete"}
                 
                 # Free the main batch
                 llama_cpp.llama_batch_free(batch)
@@ -316,10 +346,7 @@ async def stream_text(
 
             except Exception as e:
                 print(f"Generation error: {str(e)}")
-                yield {
-                    "event": "error",
-                    "data": str(e)
-                }
+                yield {"event": "error", "data": str(e)}
                 # Ensure KV cache is cleared even on error
                 llama_cpp.llama_kv_cache_clear(ctx)
 

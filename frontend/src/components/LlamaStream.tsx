@@ -23,6 +23,7 @@ interface Generation {
     mirostat_tau: number;
     mirostat_eta: number;
   };
+  tokens?: GeneratedToken[];  // Changed from TokenData[] to GeneratedToken[]
 }
 
 interface Params {
@@ -45,20 +46,43 @@ interface VoiceParams {
   tempo: number; // artificial pause between chunks in seconds
 }
 
+// First, add interfaces for token data
+interface TokenData {
+  text: string;
+  id: number;
+  prob: number;
+  top5: {
+    text: string;
+    id: number;
+    prob: number;
+  }[];
+}
+
+interface GeneratedToken {
+  text: string;
+  data: TokenData;
+}
+
 // Custom hook to manage streaming generations.
 // NOTE: We pass the current params so that the stream connection
 // uses up‑to‑date values (including num_predict) when connecting.
 function useStreamingGenerations(params: Params, isPaused: boolean, currentContext: string, voiceParams: VoiceParams) {
   const [generations, setGenerations] = useState<Generation[]>([]);
   const [currentText, setCurrentText] = useState("");
+  const [currentTokens, setCurrentTokens] = useState<GeneratedToken[]>([]);
   const [isConnected, setIsConnected] = useState(false);
   const eventSourceRef = useRef<EventSource | null>(null);
   const currentTextRef = useRef(currentText);
+  const currentTokensRef = useRef<GeneratedToken[]>([]);
 
-  // Keep the ref updated with the latest currentText
+  // Keep the refs updated with the latest values
   useEffect(() => {
     currentTextRef.current = currentText;
   }, [currentText]);
+
+  useEffect(() => {
+    currentTokensRef.current = currentTokens;
+  }, [currentTokens]);
 
   const colors = ["#FF5733", "#33FF57", "#3357FF", "#F833FF", "#33FFF8"];
 
@@ -97,13 +121,14 @@ function useStreamingGenerations(params: Params, isPaused: boolean, currentConte
     }
   };
 
-
   // handleGenerate resets current text and connects to the stream,
   // including the current parameter values in the query string.
   const handleGenerate = () => {
-    // Reset the current text
+    // Reset the current text and tokens
     currentTextRef.current = "";
     setCurrentText("");
+    currentTokensRef.current = [];
+    setCurrentTokens([]);
 
     // Cancel any ongoing speech when starting a new generation
     if ('speechSynthesis' in window) {
@@ -140,6 +165,7 @@ function useStreamingGenerations(params: Params, isPaused: boolean, currentConte
     eventSourceRef.current = eventSource;
     setIsConnected(true);
 
+    // Handle regular text messages for backward compatibility
     eventSource.onmessage = (event) => {
       currentTextRef.current += event.data;
       setCurrentText(currentTextRef.current);
@@ -150,6 +176,24 @@ function useStreamingGenerations(params: Params, isPaused: boolean, currentConte
       }
     };
 
+    // Handle the new token_data events with detailed information
+    eventSource.addEventListener("token_data", (event) => {
+      try {
+        const tokenData: TokenData = JSON.parse(event.data);
+        
+        // Add the token to our tokens array with its data
+        const newToken: GeneratedToken = {
+          text: tokenData.text,
+          data: tokenData
+        };
+        
+        currentTokensRef.current = [...currentTokensRef.current, newToken];
+        setCurrentTokens(currentTokensRef.current);
+      } catch (error) {
+        console.error("Error parsing token data:", error);
+      }
+    });
+
     eventSource.addEventListener("done", () => {
       // Save the completed generation in past responses.
       setGenerations((prev) => {
@@ -158,11 +202,18 @@ function useStreamingGenerations(params: Params, isPaused: boolean, currentConte
           color: colors[prev.length % colors.length],
           params: {
             ...params,  // Include all model parameters
-
-          }
+          },
+          tokens: currentTokensRef.current  // Store the tokens with their data
         };
         return [...prev, newGeneration];
       });
+      eventSource.close();
+      eventSourceRef.current = null;
+      setIsConnected(false);
+    });
+
+    eventSource.addEventListener("error", (event) => {
+      console.error("EventSource error:", event);
       eventSource.close();
       eventSourceRef.current = null;
       setIsConnected(false);
@@ -189,8 +240,89 @@ function useStreamingGenerations(params: Params, isPaused: boolean, currentConte
     }
   }, [isConnected, isPaused, handleGenerate]);
 
-  return { generations, currentText, isConnected, handleGenerate };
+  return { generations, currentText, currentTokens, isConnected, handleGenerate };
 }
+
+// Add this component to display tokens with probabilities
+const TokenDisplay = ({ token }: { token: GeneratedToken }) => {
+  const [showTooltip, setShowTooltip] = useState(false);
+  
+  return (
+    <span 
+      className="token"
+      style={{ 
+        position: 'relative',
+        display: 'inline-block',
+      }}
+      onMouseEnter={() => setShowTooltip(true)}
+      onMouseLeave={() => setShowTooltip(false)}
+    >
+      <span>
+        {token.text}
+        <sub style={{ 
+          fontSize: '0.6em', 
+          color: '#888', 
+          marginLeft: '1px' 
+        }}>
+          {Math.round(token.data.prob * 100)}%
+        </sub>
+      </span>
+      
+      {showTooltip && (
+        <div style={{
+          position: 'absolute',
+          bottom: '100%',
+          left: '50%',
+          transform: 'translateX(-50%)',
+          backgroundColor: 'rgba(0, 0, 0, 0.8)',
+          color: 'white',
+          padding: '8px',
+          borderRadius: '4px',
+          fontSize: '0.8rem',
+          zIndex: 10,
+          width: 'max-content',
+          maxWidth: '200px',
+          boxShadow: '0 2px 10px rgba(0, 0, 0, 0.3)',
+        }}>
+          <div style={{ fontWeight: 'bold', marginBottom: '4px' }}>Top Candidates:</div>
+          {token.data.top5.map((candidate, idx) => (
+            <div key={idx} style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              padding: '2px 0',
+              borderTop: idx > 0 ? '1px solid rgba(255, 255, 255, 0.1)' : 'none',
+            }}>
+              <span style={{ 
+                color: candidate.id === token.data.id ? '#ffca28' : 'white',
+                fontWeight: candidate.id === token.data.id ? 'bold' : 'normal',
+              }}>
+                {candidate.text || "<empty>"}
+              </span>
+              <span style={{ marginLeft: '8px' }}>
+                {Math.round(candidate.prob * 100)}%
+              </span>
+            </div>
+          ))}
+        </div>
+      )}
+    </span>
+  );
+};
+
+// Create a component to display the whole token sequence
+const TokenizedText = ({ tokens }: { tokens: GeneratedToken[] }) => {
+  if (!tokens || tokens.length === 0) {
+    return <span></span>;
+  }
+  
+  return (
+    <div>
+      {tokens.map((token, idx) => (
+        <TokenDisplay key={idx} token={token} />
+      ))}
+    </div>
+  );
+};
 
 const LlamaStream = () => {
   const location = useLocation();
@@ -242,11 +374,11 @@ const LlamaStream = () => {
     }));
   };
 
-  const { generations, currentText } = useStreamingGenerations(
+  const { generations, currentText, currentTokens, isConnected } = useStreamingGenerations(
     params, 
     isPaused, 
     currentContext,
-    voiceParams  // Pass voice parameters
+    voiceParams
   );
 
   const isMirostatEnabled = params.mirostat_mode > 0;
@@ -278,6 +410,27 @@ const LlamaStream = () => {
               flex: 1 1 auto !important;
               width: 100% !important;
             }
+          }
+          
+          /* Token display styles */
+          .token {
+            position: relative;
+            display: inline-block;
+          }
+          
+          .token:hover {
+            background-color: rgba(0, 0, 0, 0.05);
+            border-radius: 4px;
+          }
+          
+          /* Tooltip animations */
+          @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+          }
+          
+          .token-tooltip {
+            animation: fadeIn 0.2s;
           }
         `}
       </style>
@@ -595,34 +748,27 @@ const LlamaStream = () => {
         >
           <Card 
             title="Current Response" 
-            style={{ 
-              height: "300px",
-              marginBottom: "16px"
-            }}
+            style={{ height: "300px", marginBottom: "16px" }}
           >
             <div style={{
               height: "250px",
               wordWrap: "break-word",
               whiteSpace: "pre-wrap",
-              overflow: "hidden"
+              overflow: "auto"
             }}>
-              {currentText}
+              {currentTokens.length > 0 ? (
+                <TokenizedText tokens={currentTokens} />
+              ) : (
+                currentText
+              )}
             </div>
           </Card>
 
           <Card 
             title="Past Responses"
-            style={{
-              flex: 1,
-              overflow: "auto",
-              minHeight: 0
-            }}
+            style={{ flex: 1, overflow: "auto", minHeight: 0 }}
           >
-            <div style={{
-              display: "flex",
-              flexDirection: "column",
-              gap: "8px"
-            }}>
+            <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
               {(() => {
                 const maxSlots = 15;
                 const displayed = [...(generations.length > maxSlots
@@ -643,7 +789,11 @@ const LlamaStream = () => {
                           wordWrap: "break-word",
                           whiteSpace: "pre-wrap"
                         }}>
-                          {gen.text}
+                          {gen.tokens && gen.tokens.length > 0 ? (
+                            <TokenizedText tokens={gen.tokens} />
+                          ) : (
+                            gen.text
+                          )}
                         </div>
                         <div style={{
                           marginTop: '8px',
