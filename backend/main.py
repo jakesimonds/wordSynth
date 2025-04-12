@@ -10,23 +10,49 @@ import ctypes
 import llama_cpp
 import random
 import json
+import platform
+import sys
+from pathlib import Path
 
-# C Bindings setup
-lib_path = "/Users/jakesimonds/.pyenv/versions/3.11.11/lib/python3.11/site-packages/llama_cpp/lib/libllama.dylib"
+# Determine the correct library extension based on platform
+if platform.system() == "Darwin":
+    lib_extension = "dylib"
+elif platform.system() == "Linux":
+    lib_extension = "so"
+elif platform.system() == "Windows":
+    lib_extension = "dll"
+else:
+    raise OSError(f"Unsupported platform: {platform.system()}")
+
+# Try to find the library dynamically
 try:
+    # Method 1: Try using Python's package infrastructure
+    import llama_cpp
+    package_dir = Path(llama_cpp.__file__).parent
+    lib_path = str(package_dir / "lib" / f"libllama.{lib_extension}")
+    
     lib = ctypes.CDLL(lib_path, mode=ctypes.RTLD_GLOBAL)
-    print("Successfully loaded C library")
+    print(f"Successfully loaded C library from {lib_path}")
 except Exception as e:
     print(f"Failed to load C library: {e}")
     print("Trying alternate loading method...")
+    
     try:
-        # Try loading with absolute path resolution
-        abs_path = os.path.abspath(lib_path)
-        lib = ctypes.CDLL(abs_path, mode=ctypes.RTLD_GLOBAL)
-        print(f"Successfully loaded C library from {abs_path}")
+        # Method 2: Try with sys.prefix to look in the current Python environment
+        if platform.system() == "Darwin":
+            search_path = Path(sys.prefix) / "lib" / f"libllama.{lib_extension}"
+        else:
+            search_path = Path(sys.prefix) / "lib" / f"libllama.{lib_extension}"
+        
+        if search_path.exists():
+            lib = ctypes.CDLL(str(search_path), mode=ctypes.RTLD_GLOBAL)
+            print(f"Successfully loaded C library from {search_path}")
+        else:
+            raise FileNotFoundError(f"Library not found at {search_path}")
     except Exception as e2:
         print(f"Failed second attempt: {e2}")
-    exit(1)
+        print("Please install llama-cpp-python correctly for your platform")
+        sys.exit(1)
 
 # Define logit-related functions
 llama_get_logits = lib.llama_get_logits
