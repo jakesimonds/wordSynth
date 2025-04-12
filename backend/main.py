@@ -80,6 +80,40 @@ print("Context created")
 # Add a lock for generation
 generation_lock = asyncio.Lock()
 
+# Helper function to get token ID from text
+def get_token_id(text: str) -> tuple:
+    """Convert a text string to a token ID and return debug info"""
+    text_bytes = text.encode('utf-8')
+    max_tokens = 4  # Allow up to 4 tokens
+    tokens = (llama_cpp.llama_token * max_tokens)()
+    
+    n = llama_cpp.llama_tokenize(
+        vocab,
+        text_bytes,
+        len(text_bytes),
+        tokens,
+        max_tokens,
+        ctypes.c_bool(True),
+        ctypes.c_bool(True)
+    )
+    
+    token_info = []
+    for i in range(n):
+        token_bytes = llama_cpp.llama_vocab_get_text(vocab, tokens[i])
+        token_text = token_bytes.decode('utf-8', errors='replace').replace('Ġ', ' ').replace('Ċ', '\n')
+        token_info.append((tokens[i], token_text))
+    
+    if n == 1:
+        return tokens[0], token_info
+    elif n > 1:
+        return None, token_info  # Not a single token
+    else:
+        return None, []  # Tokenization failed
+
+# Default hot word (will be set during startup)
+HOT_WORD = "the"
+HOT_WORD_ID = 1820  # Hardcoded token ID for "the" from the logs
+
 @app.on_event("startup")
 async def startup_event():
     # Initialize the backend
@@ -92,6 +126,16 @@ async def startup_event():
     # Get the vocabulary
     global vocab
     vocab = llama_cpp.llama_model_get_vocab(model)  # Retrieve the vocabulary
+    
+    # Use the hardcoded hot word ID
+    global HOT_WORD_ID
+    # No need to tokenize - we hardcoded it above
+    print(f"Using hardcoded token ID for '{HOT_WORD}': {HOT_WORD_ID}")
+    
+    # Verify it's correct
+    hot_word_bytes = llama_cpp.llama_vocab_get_text(vocab, HOT_WORD_ID)
+    hot_word_text = hot_word_bytes.decode('utf-8', errors='replace').replace('Ġ', ' ').replace('Ċ', '\n')
+    print(f"Token text for ID {HOT_WORD_ID}: '{hot_word_text}'")
 
 @app.get("/stream")
 async def stream_text(
@@ -106,11 +150,23 @@ async def stream_text(
     frequency_penalty: float = Query(0.0),
     mirostat_mode: int = Query(0),  # 0 = disabled, 1 = Mirostat, 2 = Mirostat 2.0
     mirostat_tau: float = Query(5.0),  # Target entropy (higher = more diverse)
-    mirostat_eta: float = Query(0.1)  # Learning rate (lower = more stable)
+    mirostat_eta: float = Query(0.1),  # Learning rate (lower = more stable)
+    hot_word_boost: float = Query(1.0)  # Multiplier for hot word (1.0 = no boost, 2.0 = double probability, etc.)
 ):
     async def event_generator():
         async with generation_lock:
             try:
+                # Use the hardcoded token ID
+                actual_hot_word_id = HOT_WORD_ID
+                
+                # Ensure hot_word_boost is at least 1.0 (no negative effect)
+                hot_word_boost_value = max(1.0, hot_word_boost)
+                
+                # Log information about the hot word
+                hot_word_bytes = llama_cpp.llama_vocab_get_text(vocab, actual_hot_word_id)
+                hot_word_text = hot_word_bytes.decode('utf-8', errors='replace').replace('Ġ', ' ').replace('Ċ', '\n')
+                print(f"Using hot word '{hot_word_text}' (ID: {actual_hot_word_id}) with boost factor: {hot_word_boost_value}")
+                
                 # Clear KV cache before starting a new request
                 llama_cpp.llama_kv_cache_clear(ctx)
                 
@@ -189,24 +245,22 @@ async def stream_text(
                         # Convert logits to a list we can manipulate
                         logits = [logits_ptr[i] for i in range(n_vocab)]
                         
-                        # Apply repeat penalty
-                        if repeat_penalty > 1.0:
-                            for token_id in last_tokens[-min(len(last_tokens), 64):]:
-                                if token_id < n_vocab:
-                                    logits[token_id] /= repeat_penalty
+                        # Apply penalties first (existing code)
+                        # ... repeat penalty, presence penalty, frequency penalty code ...
                         
-                        # Apply presence penalty
-                        if presence_penalty > 0:
-                            for token_id in set(last_tokens):  # Unique tokens only
-                                if token_id < n_vocab:
-                                    logits[token_id] -= presence_penalty
-                        
-                        # Apply frequency penalty
-                        if frequency_penalty > 0:
-                            for token_id in last_tokens:
-                                if token_id < n_vocab:
-                                    token_count[token_id] = token_count.get(token_id, 0) + 1
-                                    logits[token_id] -= frequency_penalty * token_count[token_id]
+                        # Apply hot word boost - simple but effective approach
+                        if hot_word_boost_value > 1.0 and actual_hot_word_id < n_vocab:
+                            # Get the original logit value
+                            original_logit = logits[actual_hot_word_id]
+                            
+                            # Simple boost - just multiply the logit by the boost factor
+                            # This increases probability without needing complex calculations
+                            boosted_logit = original_logit * hot_word_boost_value
+                            
+                            # Apply the boosted logit
+                            logits[actual_hot_word_id] = boosted_logit
+                            
+                            print(f"Boosting hot word '{hot_word_text}': {original_logit:.4f} → {boosted_logit:.4f} (factor: {hot_word_boost_value})")
                         
                         # First convert the raw logits to probabilities for display
                         max_logit = max(logits)

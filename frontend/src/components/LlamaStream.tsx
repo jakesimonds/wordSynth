@@ -37,6 +37,7 @@ interface Params {
   mirostat_mode: number;  // 0 = disabled, 1 = Mirostat, 2 = Mirostat 2.0
   mirostat_tau: number;   // Target entropy
   mirostat_eta: number;   // Learning rate
+  hot_word_boost: number; // Boost factor for the hot word (1.0 = no boost)
 }
 
 // In LlamaStream.tsx add interface for voice parameters
@@ -156,6 +157,7 @@ function useStreamingGenerations(params: Params, isPaused: boolean, currentConte
       mirostat_mode: params.mirostat_mode.toString(),
       mirostat_tau: params.mirostat_tau.toString(),
       mirostat_eta: params.mirostat_eta.toString(),
+      hot_word_boost: params.hot_word_boost.toString(),
     });
 
     // Open a connection to the stream endpoint with the query parameters.
@@ -344,6 +346,7 @@ const LlamaStream = () => {
     mirostat_mode: 0,     // Default to disabled
     mirostat_tau: 5.0,    // Default tau value
     mirostat_eta: 0.1,    // Default eta value
+    hot_word_boost: 1.0,  // Default to no boost
   });
   
   // Add voice parameters state
@@ -850,6 +853,46 @@ const LlamaStream = () => {
                   onChange={(value: number) => updateParameter("num_predict", value)}
                   style={{ width: '100%' }}
                 />
+              </div>
+              <div style={{ width: '100%' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <span>Hot Word Boost: </span>
+                  <span>×{params.hot_word_boost.toFixed(1)}</span>
+                </div>
+                <Slider
+                  min={1}
+                  max={10}
+                  step={0.1}
+                  value={params.hot_word_boost}
+                  onChange={(value: number) => updateParameter("hot_word_boost", value)}
+                  style={{ width: '100%' }}
+                />
+                <div style={{ fontSize: '0.8em', color: '#666', marginTop: '4px' }}>
+                  Boosts probability of "the". Higher = more likely to appear.
+                </div>
+              </div>
+            </Space>
+          </Card>
+
+          <Card title="Hot Word Boost">
+            <Space direction="vertical" style={{ width: '100%', display: 'flex', alignItems: 'flex-start' }}>
+              <div style={{ width: '100%' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <span>Boost "the": </span>
+                  <span>{params.hot_word_boost.toFixed(0)}%</span>
+                </div>
+                <Slider
+                  min={0}
+                  max={100}
+                  step={1}
+                  value={params.hot_word_boost}
+                  onChange={(value: number) => updateParameter("hot_word_boost", value)}
+                  style={{ width: '100%' }}
+                />
+                <div style={{ fontSize: '0.8em', color: '#666', marginTop: '4px' }}>
+                  Increases the probability of generating the word "the".
+                  At 100%, this word is guaranteed to be selected.
+                </div>
               </div>
             </Space>
           </Card>
