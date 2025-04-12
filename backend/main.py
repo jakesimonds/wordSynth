@@ -5,46 +5,26 @@ from typing import Dict
 import asyncio
 from llama_cpp import Llama
 import os
-import ctypes
 import math
+import ctypes
+import llama_cpp
 
 # C Bindings setup
 lib_path = "/Users/jakesimonds/.pyenv/versions/3.11.11/lib/python3.11/site-packages/llama_cpp/lib/libllama.dylib"
 try:
-    lib = ctypes.CDLL(lib_path)
+    lib = ctypes.CDLL(lib_path, mode=ctypes.RTLD_GLOBAL)
     print("Successfully loaded C library")
 except Exception as e:
     print(f"Failed to load C library: {e}")
-    exit(1)
-
-class llama_model_params(ctypes.Structure):
-    _fields_ = [
-        ("n_gpu_layers", ctypes.c_int),
-        ("main_gpu", ctypes.c_int),
-        ("tensor_split", ctypes.POINTER(ctypes.c_float)),
-        ("progress_callback", ctypes.c_void_p),
-        ("progress_callback_user_data", ctypes.c_void_p),
-        ("kv_overrides", ctypes.c_void_p),
-        ("vocab_only", ctypes.c_bool),
-        ("use_mmap", ctypes.c_bool),
-        ("use_mlock", ctypes.c_bool),
-        ("check_tensors", ctypes.c_bool),
-    ]
-
-# Token data structures
-class llama_token_data(ctypes.Structure):
-    _fields_ = [
-        ("id", ctypes.c_int),
-        ("logit", ctypes.c_float),
-        ("p", ctypes.c_float),
-    ]
-
-class llama_token_data_array(ctypes.Structure):
-    _fields_ = [
-        ("data", ctypes.POINTER(llama_token_data)),
-        ("size", ctypes.c_size_t),
-        ("sorted", ctypes.c_bool),
-    ]
+    print("Trying alternate loading method...")
+    try:
+        # Try loading with absolute path resolution
+        abs_path = os.path.abspath(lib_path)
+        lib = ctypes.CDLL(abs_path, mode=ctypes.RTLD_GLOBAL)
+        print(f"Successfully loaded C library from {abs_path}")
+    except Exception as e2:
+        print(f"Failed second attempt: {e2}")
+        exit(1)
 
 # Define logit-related functions
 llama_get_logits = lib.llama_get_logits
@@ -63,25 +43,6 @@ llama_token_bos = lib.llama_token_bos
 llama_token_bos.argtypes = [ctypes.c_void_p]
 llama_token_bos.restype = ctypes.c_int
 
-llama_model_default_params = lib.llama_model_default_params
-llama_model_default_params.restype = llama_model_params
-
-llama_model_load_from_file = lib.llama_model_load_from_file
-llama_model_load_from_file.argtypes = [ctypes.c_char_p, llama_model_params]
-llama_model_load_from_file.restype = ctypes.c_void_p
-
-llama_model_free = lib.llama_model_free
-llama_model_free.argtypes = [ctypes.c_void_p]
-
-# Add these C function definitions more precisely since we know they exist
-llama_decode = lib.llama_decode
-llama_decode.argtypes = [ctypes.c_void_p, ctypes.POINTER(ctypes.c_int), ctypes.c_int]
-llama_decode.restype = ctypes.c_int
-
-llama_tokenize = lib.llama_tokenize
-llama_tokenize.argtypes = [ctypes.c_void_p, ctypes.c_char_p, ctypes.POINTER(ctypes.c_int), ctypes.c_int, ctypes.c_bool]
-llama_tokenize.restype = ctypes.c_int
-
 app = FastAPI()
 
 app.add_middleware(
@@ -92,6 +53,21 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Initialize backend once at startup
+print("Initializing llama backend...")
+llama_cpp.llama_backend_init(False)
+
+# Load model once at startup
+print("Loading model...")
+model_params = llama_cpp.llama_model_default_params()
+print("Model params created")
+model = llama_cpp.llama_load_model_from_file(b"../models/Llama-3.2-1B-Instruct-Q3_K_L.gguf", model_params)
+print("Model loaded")
+ctx_params = llama_cpp.llama_context_default_params()
+print("Context params created")
+ctx = llama_cpp.llama_new_context_with_model(model, ctx_params)
+print("Context created")
+
 # Initialize Llama model
 llm = Llama(
     model_path="../models/Llama-3.2-1B-Instruct-Q3_K_L.gguf",
@@ -99,21 +75,21 @@ llm = Llama(
     n_threads=4,
 )
 
-params = {
-    'temperature': 0.4,
-    'top_p': 0.4,
-    'top_k': 30,
-    'num_predict': 4,
-    'repeat_penalty': 1.1,
-    'presence_penalty': 0.0,
-    'frequency_penalty': 0.0,
-    'mirostat_mode': 0,     # Default to disabled
-    'mirostat_tau': 5.0,    # Default tau value
-    'mirostat_eta': 0.1,    # Default eta value
-}
-
 # Add a lock for generation
 generation_lock = asyncio.Lock()
+
+@app.on_event("startup")
+async def startup_event():
+    # Initialize the backend
+    llama_cpp.llama_backend_init()
+    
+    # Load the model
+    global model
+    model = llama_cpp.llama_load_model_from_file(b"../models/Llama-3.2-1B-Instruct-Q3_K_L.gguf", llama_cpp.llama_model_default_params())
+    
+    # Get the vocabulary
+    global vocab
+    vocab = llama_cpp.llama_model_get_vocab(model)  # Retrieve the vocabulary
 
 @app.get("/stream")
 async def stream_text(
@@ -160,51 +136,27 @@ async def stream_text(
 
 @app.post("/update-params")
 async def update_parameters(new_params: Dict):
-    global params
-    params.update(new_params)
-    return {"status": "success", "params": params}
-
-@app.get("/test-c-bindings")
-async def test_c_bindings():
-    model_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "models", "Llama-3.2-1B-Instruct-Q3_K_L.gguf")
-    if not os.path.exists(model_path):
-        return {"status": "error", "message": f"Model file not found at {model_path}"}
-    
-    print("Testing C bindings - loading model...")
-    params = llama_model_default_params()
-    model = llama_model_load_from_file(model_path.encode('utf-8'), params)
-    
-    if model:
-        print("C bindings test successful - model loaded")
-        llama_model_free(model)
-        print("C bindings test - model freed")
-        return {"status": "success", "message": "C bindings test successful"}
-    else:
-        print("C bindings test failed - model not loaded")
-        return {"status": "error", "message": "Failed to load model via C bindings"}
+    global ctx_params
+    ctx_params.update(new_params)
+    return {"status": "success", "params": ctx_params}
 
 @app.get("/token-probs")
 async def get_token_probabilities():
     try:
-        # Get the model pointer from our Python Llama instance
-        model_ptr = llm.model
-        if not model_ptr:
-            return {"status": "error", "message": "Model not initialized"}
+        # Get the BOS and EOS token IDs using the Python API
+        bos_token = llm.token_bos()
+        eos_token = llm.token_eos()
         
-        # Get the BOS and EOS token IDs
-        bos_token = llama_token_bos(model_ptr)
-        eos_token = llama_token_eos(model_ptr)
-        
-        # Get logits pointer
-        logits_ptr = llama_get_logits(model_ptr)
-        if not logits_ptr:
+        # Get logits using the Python API
+        logits = llm.eval_logits()
+        if logits is None:
             return {"status": "error", "message": "Could not get logits"}
         
         # Get the logit values for BOS and EOS tokens
-        bos_logit = logits_ptr[bos_token]
-        eos_logit = logits_ptr[eos_token]
+        bos_logit = logits[bos_token]
+        eos_logit = logits[eos_token]
         
-        # Convert logits to probabilities using softmax (simplified for just two tokens)
+        # Convert logits to probabilities using softmax
         bos_prob = math.exp(bos_logit) / (math.exp(bos_logit) + math.exp(eos_logit))
         eos_prob = math.exp(eos_logit) / (math.exp(bos_logit) + math.exp(eos_logit))
         
@@ -228,19 +180,19 @@ async def get_token_probabilities():
 @app.get("/logits")
 async def get_logits():
     try:
-        # Get the raw model pointer
-        model_ptr = llm.model  # This is the C pointer to the model
-        if not model_ptr:
-            return {"status": "error", "message": "Model not initialized"}
+        # Get the context pointer
+        ctx_ptr = llm.context
+        if not ctx_ptr:
+            return {"status": "error", "message": "Context not initialized"}
         
         # Get logits pointer
-        logits_ptr = llama_get_logits(model_ptr)
+        logits_ptr = llama_get_logits(ctx_ptr)
         if not logits_ptr:
             return {"status": "error", "message": "Could not get logits"}
             
         # Get specific token IDs we care about
-        eos_token = llama_token_eos(model_ptr)
-        bos_token = llama_token_bos(model_ptr)
+        eos_token = llama_token_eos(ctx_ptr)
+        bos_token = llama_token_bos(ctx_ptr)
         
         # Get their logit values
         eos_logit = logits_ptr[eos_token]
@@ -269,3 +221,135 @@ async def get_logits():
     except Exception as e:
         print(f"Error accessing logits: {str(e)}")
         return {"status": "error", "message": str(e)}
+
+@app.get("/test-c-bindings")
+async def test_c_bindings():
+    try:
+        # First, let's print what we have
+        print(f"Model type: {type(llm._model)}")
+        print(f"Context type: {type(llm._ctx)}")
+        print(f"Model value: {llm._model}")
+        print(f"Context value: {llm._ctx}")
+        
+        # Get the model pointer
+        model_ptr = ctypes.c_void_p(llm._model)
+        if not model_ptr:
+            return {"status": "error", "message": "Model not initialized"}
+            
+        # Get the context pointer
+        ctx_ptr = ctypes.c_void_p(llm._ctx)
+        if not ctx_ptr:
+            return {"status": "error", "message": "Context not initialized"}
+        
+        # Test getting BOS and EOS tokens
+        bos_token = llama_token_bos(model_ptr)  # Try with model pointer instead
+        eos_token = llama_token_eos(model_ptr)  # Try with model pointer instead
+        print(f"BOS token: {bos_token}, EOS token: {eos_token}")
+        
+        # Test getting logits
+        logits_ptr = llama_get_logits(ctx_ptr)
+        if logits_ptr:
+            print("Successfully got logits pointer")
+            # Try to read a value to make sure it's accessible
+            test_logit = logits_ptr[0]
+            print(f"First logit value: {test_logit}")
+            return {
+                "status": "success", 
+                "message": "C bindings test successful",
+                "details": {
+                    "bos_token": bos_token,
+                    "eos_token": eos_token,
+                    "first_logit": float(test_logit)
+                }
+            }
+        else:
+            return {"status": "error", "message": "Failed to get logits"}
+            
+    except Exception as e:
+        print(f"C bindings test error: {str(e)}")
+        return {"status": "error", "message": str(e)}
+
+@app.get("/test-tokenize")
+async def test_tokenize(text: str = Query(default="Hello, world!")):
+    try:
+        # Convert input text to bytes
+        text_bytes = text.encode('utf-8')
+        
+        # Create token array
+        max_tokens = ctx_params.n_ctx
+        tokens = (llama_cpp.llama_token * int(max_tokens))()
+        
+        # Tokenize
+        n_tokens = llama_cpp.llama_tokenize(
+            ctx,
+            text_bytes,
+            tokens,
+            max_tokens,
+            llama_cpp.c_bool(True)
+        )
+        
+        # Convert token array to list for response
+        token_list = [tokens[i] for i in range(n_tokens)]
+        
+        return {
+            "status": "success",
+            "text": text,
+            "n_tokens": n_tokens,
+            "tokens": token_list
+        }
+        
+    except Exception as e:
+        print(f"Error in tokenization: {str(e)}")
+        return {"status": "error", "message": str(e)}
+
+@app.get("/test-low-level")
+async def test_low_level(text: str = Query(default="Hello, world!")):
+    try:
+        print(f"Testing with input: {text}")
+        
+        # Convert input text to bytes
+        text_bytes = text.encode('utf-8')
+        text_len = len(text_bytes)  # Get the length of the input text
+        
+        # Create token array
+        max_tokens = llama_cpp.llama_n_ctx(model)  # Get the context size from the model
+        tokens = (llama_cpp.llama_token * int(max_tokens))()  # Create an array of tokens
+        
+        # Tokenize
+        n_tokens = llama_cpp.llama_tokenize(
+            vocab,  # Pass the vocabulary pointer
+            text_bytes,
+            text_len,  # Pass the length of the text
+            tokens,
+            max_tokens,
+            ctypes.c_bool(True),  # Add special tokens
+            ctypes.c_bool(True)   # Parse special tokens
+        )
+        
+        print(f"Tokenization complete. Number of tokens: {n_tokens}")
+        
+        # Get token strings
+        token_strs = []
+        for i in range(n_tokens):
+            token_str = llama_cpp.llama_token_get_text(vocab, tokens[i])
+            if token_str:
+                token_strs.append(token_str.decode('utf-8', errors='ignore'))
+        
+        return {
+            "status": "success",
+            "text": text,
+            "n_tokens": n_tokens,
+            "tokens": [int(tokens[i]) for i in range(n_tokens)],
+            "token_strings": token_strs
+        }
+        
+    except Exception as e:
+        print(f"Error in low-level test: {str(e)}")
+        return {"status": "error", "message": str(e)}
+
+# Cleanup on shutdown
+@app.on_event("shutdown")
+async def shutdown_event():
+    print("Cleaning up...")
+    llama_cpp.llama_free(ctx)
+    llama_cpp.llama_free_model(model)
