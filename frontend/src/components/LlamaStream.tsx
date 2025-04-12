@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { Slider, Space, Card, Skeleton, Select, Switch } from "antd";
+import { Slider, Space, Card, Skeleton, Select } from "antd";
 import { useLocation, Navigate, useNavigate } from 'react-router-dom';
 // Import the Help component
 import Help from './Help';
@@ -392,7 +392,7 @@ const LlamaStream = () => {
     }));
   };
 
-  const { generations, currentText, currentTokens, isConnected } = useStreamingGenerations(
+  const { generations, currentText, currentTokens } = useStreamingGenerations(
     params, 
     isPaused, 
     currentContext,
