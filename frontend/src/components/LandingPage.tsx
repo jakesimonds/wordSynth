@@ -1,10 +1,27 @@
-import { useState, KeyboardEvent, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { Input, Button } from "antd";
+import { Button, Select } from "antd";
 
 const LandingPage = () => {
-  const [inputPrompt, setInputPrompt] = useState("Repeat the word hello over and over again 100 times.");
-  const [hotWord, setHotWord] = useState('the');
+  // Predefined options
+  const promptOptions = [
+    "Repeat the word hello over and over again 100 times.",
+    "Who is Ned Flanders?",
+    "Explain pointers, are they just a C thing or other languages too",
+    "In rhyming verses describe vacation destinations",
+    "Do a hello world program in java, but along with hello world it also implements a few other simple features."
+  ];
+
+  const hotWordOptions = [
+    "the",
+    "banana",
+    "ch",
+    "an",
+    "earth"
+  ];
+
+  const [inputPrompt, setInputPrompt] = useState(promptOptions[0]);
+  const [hotWord, setHotWord] = useState(hotWordOptions[0]);
   const [isMobile, setIsMobile] = useState(false);
   const navigate = useNavigate();
 
@@ -22,13 +39,6 @@ const LandingPage = () => {
   const handleStart = () => {
     // Navigate to the main app with the prompt and hot word as states
     navigate('/app', { state: { prompt: inputPrompt, hotWord } });
-  };
-
-  const handleKeyPress = (e: KeyboardEvent<HTMLTextAreaElement>) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault(); // Prevent default Enter key behavior
-      handleStart();
-    }
   };
 
   return (
@@ -92,44 +102,45 @@ const LandingPage = () => {
           textAlign: "left",
           marginBottom: isMobile ? "0.25rem" : "0.5rem"
         }}>
-          <b>Enter one prompt:</b>
+          <b>Select a prompt:</b>
         </div>
 
-        <Input.TextArea
+        <Select
           value={inputPrompt}
-          onChange={(e) => setInputPrompt(e.target.value)}
-          onKeyDown={handleKeyPress}
-          placeholder="Enter your prompt here..."
-          autoSize={{ minRows: isMobile ? 3 : 4, maxRows: isMobile ? 6 : 8 }}
+          onChange={(value) => setInputPrompt(value)}
           style={{
-            fontSize: isMobile ? "0.9rem" : "1.1rem",
-            borderRadius: "8px",
-            border: "2px solid #e100ff33",
             width: "100%",
-            boxSizing: "border-box"
+            fontSize: isMobile ? "0.9rem" : "1.1rem",
           }}
+          size={isMobile ? "middle" : "large"}
+          options={promptOptions.map(prompt => ({
+            value: prompt,
+            label: prompt.length > 60 ? prompt.substring(0, 60) + "..." : prompt
+          }))}
         />
 
         <div style={{
           fontSize: isMobile ? "0.9rem" : "1.1rem",
           color: "#555",
           textAlign: "left",
-          marginBottom: isMobile ? "0.25rem" : "0.5rem"
+          marginBottom: isMobile ? "0.25rem" : "0.5rem",
+          marginTop: isMobile ? "0.5rem" : "0.75rem"
         }}>
-          <b>Pick a Hot Word/Token:</b> (one special token you can manually boost. Enter any word and if it's more than one token we'll just take the first one)
+          <b>Select a Hot Word/Token:</b> (a special token you can manually boost during generation)
         </div>
 
-        <Input
+        <Select
           value={hotWord}
-          onChange={(e) => setHotWord(e.target.value)}
-          placeholder="I"
+          onChange={(value) => setHotWord(value)}
           style={{
-            fontSize: isMobile ? "0.9rem" : "1.1rem",
-            borderRadius: "8px",
-            border: "2px solid #e100ff33",
             width: "100%",
-            boxSizing: "border-box"
+            fontSize: isMobile ? "0.9rem" : "1.1rem",
           }}
+          size={isMobile ? "middle" : "large"}
+          options={hotWordOptions.map(word => ({
+            value: word,
+            label: word
+          }))}
         />
 
         <small style={{
@@ -138,7 +149,7 @@ const LandingPage = () => {
           textAlign: "left",
           marginBottom: isMobile ? "0.25rem" : "0.5rem"
         }}>
-          
+          The hot word will be prioritized during text generation based on the boost slider.
         </small>
 
         <Button
