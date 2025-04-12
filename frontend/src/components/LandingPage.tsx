@@ -145,7 +145,7 @@ const LandingPage = () => {
           marginBottom: isMobile ? "0.15rem" : "0.5rem",
           marginTop: isMobile ? "0.35rem" : "0.75rem"
         }}>
-          <b>Select a Hot Word/Token:</b> (a special token you can manually boost during generation)
+          <b>Select a Hot Word/Token:</b>
         </div>
 
         <Select
@@ -168,7 +168,7 @@ const LandingPage = () => {
           textAlign: "left",
           marginBottom: isMobile ? "0.15rem" : "0.5rem"
         }}>
-          The hot word will be prioritized during text generation based on the boost slider.
+          You'll be able to adjust the probability of this token with a slider. 
         </small>
 
         <Button
