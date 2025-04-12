@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { Slider, Space, Card, Skeleton, Select } from "antd";
-import { useLocation, Navigate } from 'react-router-dom';
+import { useLocation, Navigate, useNavigate } from 'react-router-dom';
 
 // Define API_BASE to handle both development and production environments
 const API_BASE = import.meta.env.DEV 
@@ -334,6 +334,7 @@ const TokenizedText = ({ tokens, enableHover }: { tokens: GeneratedToken[]; enab
 };
 
 const LlamaStream = () => {
+  const navigate = useNavigate();
   const location = useLocation();
   const initialPrompt = location.state?.prompt;
   const initialHotWord = location.state?.hotWord || 'the'; // Get hot word from navigation state
@@ -347,7 +348,7 @@ const LlamaStream = () => {
     temperature: 0.7,
     top_p: 0.9,
     top_k: 40,
-    num_predict: 4,
+    num_predict: 24,
     repeat_penalty: 1.1,
     presence_penalty: 0.0,
     frequency_penalty: 0.0,
@@ -395,6 +396,11 @@ const LlamaStream = () => {
   );
 
   const isMirostatEnabled = params.mirostat_mode > 0;
+
+  // Add a function to handle click on the header
+  const handleHeaderClick = () => {
+    navigate('/');  // Navigate to the landing page
+  };
 
   return (
     <div style={{ display: "flex", flexDirection: "column", height: "100vh" }}>
@@ -445,6 +451,14 @@ const LlamaStream = () => {
           .token-tooltip {
             animation: fadeIn 0.2s;
           }
+
+          .header-title {
+            cursor: pointer;
+            transition: transform 0.2s ease;
+          }
+          .header-title:hover {
+            transform: scale(1.05);
+          }
         `}
       </style>
 
@@ -458,17 +472,21 @@ const LlamaStream = () => {
         alignItems: "center",
         gap: "0.5rem"
       }}>
-        <h1 style={{
-          margin: 0,
-          fontSize: "3.5rem",
-          fontFamily: "'Press Start 2P', system-ui",
-          background: "linear-gradient(45deg, #e100ff, #7700ff)",
-          WebkitBackgroundClip: "text",
-          WebkitTextFillColor: "transparent",
-          textShadow: "0 0 20px rgba(231,0,255,0.5)",
-          letterSpacing: "0.2em",
-          textAlign: "center"
-        }}>
+        <h1 
+          onClick={handleHeaderClick}
+          className="header-title"
+          style={{
+            margin: 0,
+            fontSize: "3.5rem",
+            fontFamily: "'Press Start 2P', system-ui",
+            background: "linear-gradient(45deg, #e100ff, #7700ff)",
+            WebkitBackgroundClip: "text",
+            WebkitTextFillColor: "transparent",
+            textShadow: "0 0 20px rgba(231,0,255,0.5)",
+            letterSpacing: "0.2em",
+            textAlign: "center"
+          }}
+        >
           WORD SYNTH
         </h1>
         

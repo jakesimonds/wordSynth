@@ -48,23 +48,31 @@ const LandingPage = () => {
       display: "flex",
       flexDirection: "column",
       alignItems: "center",
+      justifyContent: "center",
       background: "linear-gradient(45deg, #2b1331, #000000)",
       padding: isMobile ? "0.5rem" : "2rem",
       boxSizing: "border-box",
-      overflow: "auto"
+      overflow: isMobile ? "hidden" : "auto",
+      position: "fixed",
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0
     }}>
       <div style={{
         width: "100%",
         maxWidth: isMobile ? "100%" : "1200px",
+        maxHeight: isMobile ? "90vh" : "none",
+        overflowY: isMobile ? "auto" : "visible",
         background: "rgba(255, 255, 255, 0.95)",
         borderRadius: isMobile ? "12px" : "16px",
         padding: isMobile ? "1rem" : "2.5rem",
         boxShadow: "0 8px 32px rgba(0, 0, 0, 0.2)",
         display: "flex",
         flexDirection: "column",
-        gap: isMobile ? "1rem" : "1.5rem",
+        gap: isMobile ? "0.75rem" : "1.5rem",
         boxSizing: "border-box",
-        marginTop: isMobile ? "0.5rem" : "1rem"
+        margin: isMobile ? "auto" : "1rem auto"
       }}>
         <div style={{
           fontSize: isMobile ? "1rem" : "1.2rem",
@@ -83,15 +91,15 @@ const LandingPage = () => {
           
           Just like a synthesizer allows you to manipulate sound in real time with knobs and sliders, Word Synth lets you manipulate generations of a Llama3.2 1B model in real time via exposed sampling parameters.
 
-          <p style={{ marginTop: isMobile ? "0.75rem" : "1.25rem", marginBottom: isMobile ? "0.25rem" : "0.75rem" }}><b>Things to Try:</b></p>
+          <p style={{ marginTop: isMobile ? "0.5rem" : "1.25rem", marginBottom: isMobile ? "0.25rem" : "0.75rem" }}><b>Things to Try:</b></p>
           <ul style={{ 
             paddingLeft: isMobile ? "1.25rem" : "2rem",
-            marginBottom: isMobile ? "0.75rem" : "1.25rem",
+            marginBottom: isMobile ? "0.5rem" : "1.25rem",
             marginTop: "0"
           }}>
-            <li>Set temp, top_p or top_k all the way down and see it become deterministic.</li>
+            <li>Set temp, top_p or top_k all the way down..the outcome becomes deterministic.</li>
             <li>Set top_k to 2 and observe that you only see two first tokens</li>
-            <li>Tell the model to say something over and over again and then adjust the presence or repeat Penalty</li>
+            <li>If anything breaks, ctrl+q your browser. If that doesn't work I'm sorry</li>
             <li>See if you can 'crash' the model into giving you nonsense</li>
           </ul>
         </div>
@@ -100,7 +108,7 @@ const LandingPage = () => {
           fontSize: isMobile ? "0.9rem" : "1.1rem",
           color: "#555",
           textAlign: "left",
-          marginBottom: isMobile ? "0.25rem" : "0.5rem"
+          marginBottom: isMobile ? "0.15rem" : "0.5rem"
         }}>
           <b>Select a prompt:</b>
         </div>
@@ -115,16 +123,27 @@ const LandingPage = () => {
           size={isMobile ? "middle" : "large"}
           options={promptOptions.map(prompt => ({
             value: prompt,
-            label: prompt.length > 60 ? prompt.substring(0, 60) + "..." : prompt
+            label: prompt,
           }))}
+          optionLabelProp="label"
+          optionRender={(option) => (
+            <div style={{ 
+              whiteSpace: "normal", 
+              wordBreak: "break-word",
+              padding: "4px 0"
+            }}>
+              {option.label}
+            </div>
+          )}
+          maxTagTextLength={100}
         />
 
         <div style={{
           fontSize: isMobile ? "0.9rem" : "1.1rem",
           color: "#555",
           textAlign: "left",
-          marginBottom: isMobile ? "0.25rem" : "0.5rem",
-          marginTop: isMobile ? "0.5rem" : "0.75rem"
+          marginBottom: isMobile ? "0.15rem" : "0.5rem",
+          marginTop: isMobile ? "0.35rem" : "0.75rem"
         }}>
           <b>Select a Hot Word/Token:</b> (a special token you can manually boost during generation)
         </div>
@@ -147,7 +166,7 @@ const LandingPage = () => {
           fontSize: isMobile ? "0.8rem" : "1rem",
           color: "#666",
           textAlign: "left",
-          marginBottom: isMobile ? "0.25rem" : "0.5rem"
+          marginBottom: isMobile ? "0.15rem" : "0.5rem"
         }}>
           The hot word will be prioritized during text generation based on the boost slider.
         </small>
@@ -162,7 +181,7 @@ const LandingPage = () => {
             background: "linear-gradient(45deg, #e100ff, #7700ff)",
             border: "none",
             borderRadius: "8px",
-            marginTop: isMobile ? "0.25rem" : "0.75rem",
+            marginTop: isMobile ? "0.15rem" : "0.75rem",
             width: "100%"
           }}
         >
@@ -173,7 +192,7 @@ const LandingPage = () => {
           display: "flex",
           justifyContent: "flex-start",
           gap: "1rem",
-          marginTop: isMobile ? "0.25rem" : "0.75rem"
+          marginTop: isMobile ? "0.15rem" : "0.75rem"
         }}>
           <a
             href="https://github.com/jakesimonds/wordSynth"
