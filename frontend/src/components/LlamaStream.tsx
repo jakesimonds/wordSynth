@@ -271,7 +271,7 @@ const TokenDisplay = ({ token, enableHover }: { token: GeneratedToken; enableHov
       {showTooltip && (
         <div style={{
           position: 'absolute',
-          bottom: '100%',
+          top: '100%',
           left: '50%',
           transform: 'translateX(-50%)',
           backgroundColor: 'rgba(0, 0, 0, 0.8)',
@@ -279,7 +279,7 @@ const TokenDisplay = ({ token, enableHover }: { token: GeneratedToken; enableHov
           padding: '8px',
           borderRadius: '4px',
           fontSize: '0.8rem',
-          zIndex: 10,
+          zIndex: 2000,
           width: 'max-content',
           maxWidth: '200px',
           boxShadow: '0 2px 10px rgba(0, 0, 0, 0.3)',
@@ -757,7 +757,7 @@ const LlamaStream = () => {
               overflow: "auto"
             }}>
               {currentTokens.length > 0 ? (
-                <TokenizedText tokens={currentTokens} enableHover={false} />
+                <TokenizedText tokens={currentTokens} enableHover={true} />
               ) : (
                 currentText
               )}

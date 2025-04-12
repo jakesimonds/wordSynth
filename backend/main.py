@@ -101,7 +101,12 @@ async def stream_text(
     top_p: float = Query(0.9),
     top_k: int = Query(40),
     num_predict: int = Query(4),
-    repeat_penalty: float = Query(1.1)
+    repeat_penalty: float = Query(1.1),
+    presence_penalty: float = Query(0.0),
+    frequency_penalty: float = Query(0.0),
+    mirostat_mode: int = Query(0),  # 0 = disabled, 1 = Mirostat, 2 = Mirostat 2.0
+    mirostat_tau: float = Query(5.0),  # Target entropy (higher = more diverse)
+    mirostat_eta: float = Query(0.1)  # Learning rate (lower = more stable)
 ):
     async def event_generator():
         async with generation_lock:
@@ -165,6 +170,10 @@ async def stream_text(
                 # Track tokens to implement repeat penalty
                 last_tokens = [tokens[i] for i in range(n_tokens)]
                 generated_text = ""
+                token_count = {}  # Dictionary to track token frequencies
+                
+                # Mirostat variables
+                mirostat_mu = 2.0 * mirostat_tau  # Initialize mu (2 * tau is a reasonable starting point)
                 
                 # Generate tokens with proper sampling
                 pos = n_tokens
@@ -185,6 +194,19 @@ async def stream_text(
                             for token_id in last_tokens[-min(len(last_tokens), 64):]:
                                 if token_id < n_vocab:
                                     logits[token_id] /= repeat_penalty
+                        
+                        # Apply presence penalty
+                        if presence_penalty > 0:
+                            for token_id in set(last_tokens):  # Unique tokens only
+                                if token_id < n_vocab:
+                                    logits[token_id] -= presence_penalty
+                        
+                        # Apply frequency penalty
+                        if frequency_penalty > 0:
+                            for token_id in last_tokens:
+                                if token_id < n_vocab:
+                                    token_count[token_id] = token_count.get(token_id, 0) + 1
+                                    logits[token_id] -= frequency_penalty * token_count[token_id]
                         
                         # First convert the raw logits to probabilities for display
                         max_logit = max(logits)
@@ -207,8 +229,117 @@ async def stream_text(
                             } for text, idx, prob in zip(top5_clean, top5_indices, top5_probs)
                         ]
                         
-                        # Now proceed with token selection based on parameters
-                        if top_k == 1 or temperature <= 0.0:
+                        # Determine how to sample based on parameters and mirostat mode
+                        if mirostat_mode > 0:
+                            # Mirostat sampling
+                            if mirostat_mode == 1:
+                                # Mirostat 1.0 implementation
+                                # Calculate entropy of raw probabilities for info display
+                                entropy = -sum(p * math.log2(p) if p > 0 else 0 for p in raw_probs)
+                                
+                                # Use mu to adjust the logits
+                                k = mirostat_mu
+                                for i in range(n_vocab):
+                                    logits[i] -= k
+                                
+                                # Convert adjusted logits to probabilities
+                                max_adj_logit = max(logits)
+                                adj_exp_logits = [math.exp(logit - max_adj_logit) if logit - max_adj_logit > -100 else 0 for logit in logits]
+                                adj_sum_exp_logits = sum(adj_exp_logits)
+                                
+                                if adj_sum_exp_logits > 0:
+                                    adj_probs = [adj_exp / adj_sum_exp_logits for adj_exp in adj_exp_logits]
+                                else:
+                                    # Fallback to raw probs if adjustment produces all zeros
+                                    adj_probs = raw_probs
+                                
+                                # Sample from the adjusted distribution
+                                r = random.random()
+                                cdf = 0.0
+                                next_token_id = None
+                                for i, p in enumerate(adj_probs):
+                                    cdf += p
+                                    if r < cdf:
+                                        next_token_id = i
+                                        break
+                                
+                                if next_token_id is None:
+                                    next_token_id = top5_indices[0]  # Fallback to most likely
+                                
+                                # Update mu based on the surprise value of the chosen token
+                                surprise = -math.log2(raw_probs[next_token_id]) if raw_probs[next_token_id] > 0 else 100
+                                mirostat_mu = mirostat_mu + mirostat_eta * (surprise - mirostat_tau)
+                                
+                                # Clip mu to a reasonable range (prevent extreme values)
+                                mirostat_mu = max(0, min(100, mirostat_mu))
+                                
+                                print(f"Mirostat 1.0: mu={mirostat_mu:.4f}, surprise={surprise:.4f}, entropy={entropy:.4f}")
+                                
+                                sel_prob = raw_probs[next_token_id]
+                                
+                            else:  # mirostat_mode == 2
+                                # Mirostat 2.0 implementation (simpler, adjusts temperature directly)
+                                # Get probabilities with current temperature
+                                temp = 1.0  # Start with temp=1.0
+                                
+                                # Calculate entropy of the current distribution
+                                entropy = -sum(p * math.log2(p) if p > 0 else 0 for p in raw_probs)
+                                
+                                # Binary search to find the right temperature
+                                temp_min = 0.01
+                                temp_max = 2.0
+                                target_entropy = mirostat_tau
+                                iterations = 7  # Number of binary search iterations
+                                
+                                for _ in range(iterations):
+                                    temp = 0.5 * (temp_min + temp_max)
+                                    
+                                    # Apply temperature
+                                    temp_logits = [logit / temp for logit in logits]
+                                    
+                                    # Convert to probabilities
+                                    max_temp_logit = max(temp_logits)
+                                    exp_temp_logits = [math.exp(logit - max_temp_logit) for logit in temp_logits]
+                                    sum_exp_temp_logits = sum(exp_temp_logits)
+                                    temp_probs = [exp_logit / sum_exp_temp_logits for exp_logit in exp_temp_logits]
+                                    
+                                    # Calculate entropy
+                                    entropy = -sum(p * math.log2(p) if p > 0 else 0 for p in temp_probs)
+                                    
+                                    # Adjust temperature based on entropy
+                                    if entropy < target_entropy:
+                                        temp_min = temp  # Temperature is too low
+                                    else:
+                                        temp_max = temp  # Temperature is too high
+                                
+                                print(f"Mirostat 2.0: temperature={temp:.4f}, entropy={entropy:.4f}")
+                                
+                                # Apply the final temperature and sample
+                                for i in range(n_vocab):
+                                    logits[i] /= temp
+                                
+                                # Convert to probabilities
+                                max_temp_logit = max(logits)
+                                exp_temp_logits = [math.exp(logit - max_temp_logit) for logit in logits]
+                                sum_exp_temp_logits = sum(exp_temp_logits)
+                                temp_probs = [exp_logit / sum_exp_temp_logits for exp_logit in exp_temp_logits]
+                                
+                                # Sample from the adjusted distribution
+                                r = random.random()
+                                cdf = 0.0
+                                next_token_id = None
+                                for i, p in enumerate(temp_probs):
+                                    cdf += p
+                                    if r < cdf:
+                                        next_token_id = i
+                                        break
+                                
+                                if next_token_id is None:
+                                    next_token_id = top5_indices[0]  # Fallback to most likely
+                                
+                                sel_prob = raw_probs[next_token_id]
+                                
+                        elif top_k == 1 or temperature <= 0.0:
                             # Deterministic selection - just pick the highest probability token
                             next_token_id = top5_indices[0]  # The first token is the most likely
                             sel_prob = top5_probs[0]
@@ -334,7 +465,7 @@ async def stream_text(
                         print(f"Error generating token {token_idx+1}: {str(e)}")
                         yield {"event": "error", "data": str(e)}
                         break
-
+                    
                 print(f"\nGenerated full text: {generated_text}")
                 yield {"event": "done", "data": "complete"}
                 
@@ -343,13 +474,13 @@ async def stream_text(
                 
                 # Clear KV cache after completing the request
                 llama_cpp.llama_kv_cache_clear(ctx)
-
+                        
             except Exception as e:
                 print(f"Generation error: {str(e)}")
                 yield {"event": "error", "data": str(e)}
                 # Ensure KV cache is cleared even on error
                 llama_cpp.llama_kv_cache_clear(ctx)
-
+    
     return EventSourceResponse(event_generator())
 
 # Cleanup on shutdown
