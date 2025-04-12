@@ -73,11 +73,20 @@ llama_model_load_from_file.restype = ctypes.c_void_p
 llama_model_free = lib.llama_model_free
 llama_model_free.argtypes = [ctypes.c_void_p]
 
+# Add these C function definitions more precisely since we know they exist
+llama_decode = lib.llama_decode
+llama_decode.argtypes = [ctypes.c_void_p, ctypes.POINTER(ctypes.c_int), ctypes.c_int]
+llama_decode.restype = ctypes.c_int
+
+llama_tokenize = lib.llama_tokenize
+llama_tokenize.argtypes = [ctypes.c_void_p, ctypes.c_char_p, ctypes.POINTER(ctypes.c_int), ctypes.c_int, ctypes.c_bool]
+llama_tokenize.restype = ctypes.c_int
+
 app = FastAPI()
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173","http://wordsynth.latenthomer.com/","*"],
+    allow_origins=["http://localhost:5173", "http://wordsynth.latenthomer.com/", "*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -110,45 +119,24 @@ generation_lock = asyncio.Lock()
 async def stream_text(
     request: Request,
     context: str = Query(...),
-    temperature: float = Query(0.4),
-    top_p: float = Query(0.4),
-    top_k: int = Query(30),
-    num_predict: int = Query(48),
-    repeat_penalty: float = Query(1.1),
-    presence_penalty: float = Query(0.0),
-    frequency_penalty: float = Query(0.0),
-    mirostat_mode: int = Query(0),
-    mirostat_tau: float = Query(5.0),
-    mirostat_eta: float = Query(0.1),
+    temperature: float = Query(0.7),
+    top_p: float = Query(0.9),
+    top_k: int = Query(40),
+    num_predict: int = Query(4),
+    repeat_penalty: float = Query(1.1)
 ):
     async def event_generator():
         async with generation_lock:
             try:
-                # Create base completion parameters
-                completion_params = {
-                    'prompt': context,
-                    'max_tokens': num_predict,
-                    'temperature': temperature,
-                    'repeat_penalty': repeat_penalty,
-                    'presence_penalty': presence_penalty,
-                    'frequency_penalty': frequency_penalty,
-                    'stream': True
-                }
-                
-                # Add sampling strategy parameters based on mirostat_mode
-                if mirostat_mode > 0:
-                    completion_params.update({
-                        'mirostat_mode': mirostat_mode,
-                        'mirostat_tau': mirostat_tau,
-                        'mirostat_eta': mirostat_eta
-                    })
-                else:
-                    completion_params.update({
-                        'top_p': top_p,
-                        'top_k': top_k
-                    })
-                
-                for chunk in llm.create_completion(**completion_params):
+                for chunk in llm.create_completion(
+                    prompt=context,
+                    max_tokens=num_predict,
+                    temperature=temperature,
+                    top_p=top_p,
+                    top_k=top_k,
+                    repeat_penalty=repeat_penalty,
+                    stream=True
+                ):
                     if chunk['choices'][0]['finish_reason'] is not None:
                         yield {
                             "event": "done",
@@ -156,34 +144,11 @@ async def stream_text(
                         }
                         break
                     
-                    # Get the logits for THIS SPECIFIC token
-                    try:
-                        model_ptr = llm._model
-                        if model_ptr:
-                            logits_ptr = llama_get_logits(model_ptr)
-                            if logits_ptr:
-                                eos_token = llama_token_eos(model_ptr)
-                                eos_logit = logits_ptr[eos_token]
-                                eos_prob = math.exp(eos_logit) / (1 + math.exp(eos_logit))
-                                
-                                yield {
-                                    "event": "message",
-                                    "data": {
-                                        "text": chunk['choices'][0]['text'],
-                                        "probabilities": {
-                                            "eos": eos_prob
-                                        }
-                                    }
-                                }
-                    except Exception as e:
-                        # If we fail to get logits, at least send the text
-                        yield {
-                            "event": "message",
-                            "data": {
-                                "text": chunk['choices'][0]['text']
-                            }
-                        }
-                    
+                    yield {
+                        "event": "message",
+                        "data": chunk['choices'][0]['text']
+                    }
+                        
             except Exception as e:
                 print(f"Generation error: {str(e)}")
                 yield {
@@ -264,7 +229,7 @@ async def get_token_probabilities():
 async def get_logits():
     try:
         # Get the raw model pointer
-        model_ptr = llm._model  # This is the C pointer to the model
+        model_ptr = llm.model  # This is the C pointer to the model
         if not model_ptr:
             return {"status": "error", "message": "Model not initialized"}
         
