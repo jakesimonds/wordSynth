@@ -67,7 +67,13 @@ interface GeneratedToken {
 // Custom hook to manage streaming generations.
 // NOTE: We pass the current params so that the stream connection
 // uses up‑to‑date values (including num_predict) when connecting.
-function useStreamingGenerations(params: Params, isPaused: boolean, currentContext: string, voiceParams: VoiceParams) {
+function useStreamingGenerations(
+  params: Params, 
+  isPaused: boolean, 
+  currentContext: string, 
+  voiceParams: VoiceParams,
+  hotWord: string  // Add hotWord parameter
+) {
   const [generations, setGenerations] = useState<Generation[]>([]);
   const [currentText, setCurrentText] = useState("");
   const [currentTokens, setCurrentTokens] = useState<GeneratedToken[]>([]);
@@ -157,6 +163,7 @@ function useStreamingGenerations(params: Params, isPaused: boolean, currentConte
       mirostat_mode: params.mirostat_mode.toString(),
       mirostat_tau: params.mirostat_tau.toString(),
       mirostat_eta: params.mirostat_eta.toString(),
+      hot_word: hotWord,  // Include the hot word
       hot_word_boost: params.hot_word_boost.toString(),
     });
 
@@ -329,6 +336,7 @@ const TokenizedText = ({ tokens, enableHover }: { tokens: GeneratedToken[]; enab
 const LlamaStream = () => {
   const location = useLocation();
   const initialPrompt = location.state?.prompt;
+  const initialHotWord = location.state?.hotWord || 'the'; // Get hot word from navigation state
 
   // If no prompt was provided, redirect back to landing page
   if (!initialPrompt) {
@@ -358,6 +366,7 @@ const LlamaStream = () => {
 
   const [isPaused, setIsPaused] = useState(false);
   const [currentContext] = useState(initialPrompt);
+  const [hotWord] = useState(initialHotWord);
 
   const togglePause = () => {
     setIsPaused(prevPaused => !prevPaused);
@@ -381,7 +390,8 @@ const LlamaStream = () => {
     params, 
     isPaused, 
     currentContext,
-    voiceParams
+    voiceParams,
+    hotWord
   );
 
   const isMirostatEnabled = params.mirostat_mode > 0;
@@ -868,30 +878,29 @@ const LlamaStream = () => {
                   style={{ width: '100%' }}
                 />
                 <div style={{ fontSize: '0.8em', color: '#666', marginTop: '4px' }}>
-                  Boosts probability of "the". Higher = more likely to appear.
+                  Boosts probability of "{hotWord}". Higher = more likely to appear.
                 </div>
               </div>
             </Space>
           </Card>
 
-          <Card title="Hot Word Boost">
+          <Card title={`Hot Word Boost: "${hotWord}"`}>
             <Space direction="vertical" style={{ width: '100%', display: 'flex', alignItems: 'flex-start' }}>
               <div style={{ width: '100%' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                  <span>Boost "the": </span>
-                  <span>{params.hot_word_boost.toFixed(0)}%</span>
+                  <span>Boost Amount: </span>
+                  <span>×{params.hot_word_boost.toFixed(1)}</span>
                 </div>
                 <Slider
-                  min={0}
-                  max={100}
-                  step={1}
+                  min={1}
+                  max={10}
+                  step={0.1}
                   value={params.hot_word_boost}
                   onChange={(value: number) => updateParameter("hot_word_boost", value)}
                   style={{ width: '100%' }}
                 />
                 <div style={{ fontSize: '0.8em', color: '#666', marginTop: '4px' }}>
-                  Increases the probability of generating the word "the".
-                  At 100%, this word is guaranteed to be selected.
+                  Boosts probability of "{hotWord}". Higher = more likely to appear.
                 </div>
               </div>
             </Space>

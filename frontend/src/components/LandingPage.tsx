@@ -4,6 +4,7 @@ import { Input, Button } from "antd";
 
 const LandingPage = () => {
   const [inputPrompt, setInputPrompt] = useState("Repeat the word hello over and over again 100 times.");
+  const [hotWord, setHotWord] = useState('the');
   const [isMobile, setIsMobile] = useState(false);
   const navigate = useNavigate();
 
@@ -19,8 +20,8 @@ const LandingPage = () => {
   }, []);
 
   const handleStart = () => {
-    // Navigate to the main app with the prompt as a state
-    navigate('/app', { state: { prompt: inputPrompt } });
+    // Navigate to the main app with the prompt and hot word as states
+    navigate('/app', { state: { prompt: inputPrompt, hotWord } });
   };
 
   const handleKeyPress = (e: KeyboardEvent<HTMLTextAreaElement>) => {
@@ -108,6 +109,37 @@ const LandingPage = () => {
             boxSizing: "border-box"
           }}
         />
+
+        <div style={{
+          fontSize: isMobile ? "0.9rem" : "1.1rem",
+          color: "#555",
+          textAlign: "left",
+          marginBottom: isMobile ? "0.25rem" : "0.5rem"
+        }}>
+          Hot Word (will be boosted during generation):
+        </div>
+
+        <Input
+          value={hotWord}
+          onChange={(e) => setHotWord(e.target.value)}
+          placeholder="Enter a word to boost"
+          style={{
+            fontSize: isMobile ? "0.9rem" : "1.1rem",
+            borderRadius: "8px",
+            border: "2px solid #e100ff33",
+            width: "100%",
+            boxSizing: "border-box"
+          }}
+        />
+
+        <small style={{
+          fontSize: isMobile ? "0.8rem" : "1rem",
+          color: "#666",
+          textAlign: "left",
+          marginBottom: isMobile ? "0.25rem" : "0.5rem"
+        }}>
+          For best results, use a single word like "the", "and", or "fantastic"
+        </small>
 
         <Button
           type="primary"

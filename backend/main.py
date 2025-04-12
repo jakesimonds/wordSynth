@@ -110,9 +110,73 @@ def get_token_id(text: str) -> tuple:
     else:
         return None, []  # Tokenization failed
 
-# Default hot word (will be set during startup)
-HOT_WORD = "the"
-HOT_WORD_ID = 1820  # Hardcoded token ID for "the" from the logs
+# Keep the default for when no hot word is provided
+DEFAULT_HOT_WORD = "the"
+DEFAULT_HOT_WORD_ID = 1820  # Known token ID for "the"
+
+# Improved token identification for the hot word
+def get_hot_word_token(word: str) -> int:
+    """Get the token ID for a given word, properly handling tokenization"""
+    # Try different prefixes to get proper tokenization
+    # Most tokenizers need a space prefix for words
+    best_token = None
+    best_token_text = ""
+    
+    for prefix in [" ", ""]:
+        prefixed_word = prefix + word
+        prefixed_bytes = prefixed_word.encode('utf-8')
+        
+        # Create a token array
+        max_tokens = 8  # Allow several tokens for debugging
+        tokens = (llama_cpp.llama_token * max_tokens)()
+        
+        # Tokenize the word
+        n_tokens = llama_cpp.llama_tokenize(
+            vocab,
+            prefixed_bytes,
+            len(prefixed_bytes),
+            tokens,
+            max_tokens,
+            ctypes.c_bool(True),
+            ctypes.c_bool(True)
+        )
+        
+        # Debug print all tokens
+        print(f"Tokenizing '{prefixed_word}' with prefix '{prefix}' gave {n_tokens} tokens:")
+        for i in range(n_tokens):
+            token_bytes = llama_cpp.llama_vocab_get_text(vocab, tokens[i])
+            token_text = token_bytes.decode('utf-8', errors='replace').replace('Ġ', ' ').replace('Ċ', '\n')
+            print(f"  Token {i+1}: ID {tokens[i]} = '{token_text}'")
+            
+            # Skip special tokens like BOS, EOS, etc.
+            # These typically have very high token IDs
+            if tokens[i] > 100000:  # Special tokens are usually above 100k
+                print(f"  Skipping special token {tokens[i]} ('{token_text}')")
+                continue
+                
+            # For the space prefix version, skip the first token if it's just a space
+            if prefix == " " and i == 0 and token_text.strip() == "":
+                print(f"  Skipping space token {tokens[i]} ('{token_text}')")
+                continue
+                
+            # For multi-token words, pick a token that most closely resembles the word
+            # Prioritize exact matches of the word after trimming spaces
+            if token_text.strip() == word:
+                print(f"  Found exact match: {tokens[i]} ('{token_text}')")
+                return tokens[i]
+            
+            # Save this as a candidate if no exact match is found
+            if best_token is None or len(token_text.strip()) > len(best_token_text.strip()):
+                best_token = tokens[i]
+                best_token_text = token_text
+    
+    if best_token is not None:
+        print(f"No exact match found. Using best candidate: {best_token} ('{best_token_text}')")
+        return best_token
+    
+    # If no suitable token found, return None
+    print(f"Could not find suitable token for '{word}'")
+    return None
 
 @app.on_event("startup")
 async def startup_event():
@@ -128,14 +192,14 @@ async def startup_event():
     vocab = llama_cpp.llama_model_get_vocab(model)  # Retrieve the vocabulary
     
     # Use the hardcoded hot word ID
-    global HOT_WORD_ID
+    global DEFAULT_HOT_WORD_ID
     # No need to tokenize - we hardcoded it above
-    print(f"Using hardcoded token ID for '{HOT_WORD}': {HOT_WORD_ID}")
+    print(f"Using hardcoded token ID for '{DEFAULT_HOT_WORD}': {DEFAULT_HOT_WORD_ID}")
     
     # Verify it's correct
-    hot_word_bytes = llama_cpp.llama_vocab_get_text(vocab, HOT_WORD_ID)
+    hot_word_bytes = llama_cpp.llama_vocab_get_text(vocab, DEFAULT_HOT_WORD_ID)
     hot_word_text = hot_word_bytes.decode('utf-8', errors='replace').replace('Ġ', ' ').replace('Ċ', '\n')
-    print(f"Token text for ID {HOT_WORD_ID}: '{hot_word_text}'")
+    print(f"Token text for ID {DEFAULT_HOT_WORD_ID}: '{hot_word_text}'")
 
 @app.get("/stream")
 async def stream_text(
@@ -151,21 +215,28 @@ async def stream_text(
     mirostat_mode: int = Query(0),  # 0 = disabled, 1 = Mirostat, 2 = Mirostat 2.0
     mirostat_tau: float = Query(5.0),  # Target entropy (higher = more diverse)
     mirostat_eta: float = Query(0.1),  # Learning rate (lower = more stable)
-    hot_word_boost: float = Query(1.0)  # Multiplier for hot word (1.0 = no boost, 2.0 = double probability, etc.)
+    hot_word: str = Query(None),  # User-specified hot word (optional)
+    hot_word_boost: float = Query(1.0)  # Multiplier for hot word (1.0 = no boost, 2.0 = double, etc.)
 ):
     async def event_generator():
         async with generation_lock:
             try:
-                # Use the hardcoded token ID
-                actual_hot_word_id = HOT_WORD_ID
+                # Determine the hot word to use
+                actual_hot_word = hot_word if hot_word is not None else "the"
+                
+                # Get the token ID for the hot word
+                actual_hot_word_id = get_hot_word_token(actual_hot_word)
+                
+                if actual_hot_word_id is None:
+                    print(f"Warning: Could not find token for hot word '{actual_hot_word}'. Hot word boost will be disabled.")
+                else:
+                    # Get text representation for logging
+                    hot_word_bytes = llama_cpp.llama_vocab_get_text(vocab, actual_hot_word_id)
+                    hot_word_text = hot_word_bytes.decode('utf-8', errors='replace').replace('Ġ', ' ').replace('Ċ', '\n')
+                    print(f"Using hot word: '{actual_hot_word}' => Token ID {actual_hot_word_id} ('{hot_word_text.strip()}')")
                 
                 # Ensure hot_word_boost is at least 1.0 (no negative effect)
                 hot_word_boost_value = max(1.0, hot_word_boost)
-                
-                # Log information about the hot word
-                hot_word_bytes = llama_cpp.llama_vocab_get_text(vocab, actual_hot_word_id)
-                hot_word_text = hot_word_bytes.decode('utf-8', errors='replace').replace('Ġ', ' ').replace('Ċ', '\n')
-                print(f"Using hot word '{hot_word_text}' (ID: {actual_hot_word_id}) with boost factor: {hot_word_boost_value}")
                 
                 # Clear KV cache before starting a new request
                 llama_cpp.llama_kv_cache_clear(ctx)
@@ -248,8 +319,8 @@ async def stream_text(
                         # Apply penalties first (existing code)
                         # ... repeat penalty, presence penalty, frequency penalty code ...
                         
-                        # Apply hot word boost - simple but effective approach
-                        if hot_word_boost_value > 1.0 and actual_hot_word_id < n_vocab:
+                        # Apply hot word boost when generating tokens
+                        if actual_hot_word_id is not None and hot_word_boost_value > 1.0:
                             # Get the original logit value
                             original_logit = logits[actual_hot_word_id]
                             
