@@ -244,7 +244,7 @@ function useStreamingGenerations(params: Params, isPaused: boolean, currentConte
 }
 
 // Add this component to display tokens with probabilities
-const TokenDisplay = ({ token }: { token: GeneratedToken }) => {
+const TokenDisplay = ({ token, enableHover }: { token: GeneratedToken; enableHover: boolean }) => {
   const [showTooltip, setShowTooltip] = useState(false);
   
   return (
@@ -254,8 +254,8 @@ const TokenDisplay = ({ token }: { token: GeneratedToken }) => {
         position: 'relative',
         display: 'inline-block',
       }}
-      onMouseEnter={() => setShowTooltip(true)}
-      onMouseLeave={() => setShowTooltip(false)}
+      onMouseEnter={enableHover ? () => setShowTooltip(true) : undefined}
+      onMouseLeave={enableHover ? () => setShowTooltip(false) : undefined}
     >
       <span>
         {token.text}
@@ -310,7 +310,7 @@ const TokenDisplay = ({ token }: { token: GeneratedToken }) => {
 };
 
 // Create a component to display the whole token sequence
-const TokenizedText = ({ tokens }: { tokens: GeneratedToken[] }) => {
+const TokenizedText = ({ tokens, enableHover }: { tokens: GeneratedToken[]; enableHover: boolean }) => {
   if (!tokens || tokens.length === 0) {
     return <span></span>;
   }
@@ -318,7 +318,7 @@ const TokenizedText = ({ tokens }: { tokens: GeneratedToken[] }) => {
   return (
     <div>
       {tokens.map((token, idx) => (
-        <TokenDisplay key={idx} token={token} />
+        <TokenDisplay key={idx} token={token} enableHover={enableHover} />
       ))}
     </div>
   );
@@ -757,7 +757,7 @@ const LlamaStream = () => {
               overflow: "auto"
             }}>
               {currentTokens.length > 0 ? (
-                <TokenizedText tokens={currentTokens} />
+                <TokenizedText tokens={currentTokens} enableHover={false} />
               ) : (
                 currentText
               )}
@@ -790,7 +790,7 @@ const LlamaStream = () => {
                           whiteSpace: "pre-wrap"
                         }}>
                           {gen.tokens && gen.tokens.length > 0 ? (
-                            <TokenizedText tokens={gen.tokens} />
+                            <TokenizedText tokens={gen.tokens} enableHover={true} />
                           ) : (
                             gen.text
                           )}
