@@ -73,7 +73,7 @@ const LandingPage = () => {
           
           Just like a synthesizer allows you to manipulate sound in real time with knobs and sliders, Word Synth lets you manipulate generations of a Llama3.2 1B model in real time via exposed sampling parameters.
 
-          <p style={{ marginTop: isMobile ? "0.75rem" : "1.25rem", marginBottom: isMobile ? "0.25rem" : "0.75rem" }}>Things to Try:</p>
+          <p style={{ marginTop: isMobile ? "0.75rem" : "1.25rem", marginBottom: isMobile ? "0.25rem" : "0.75rem" }}><b>Things to Try:</b></p>
           <ul style={{ 
             paddingLeft: isMobile ? "1.25rem" : "2rem",
             marginBottom: isMobile ? "0.75rem" : "1.25rem",
@@ -92,7 +92,7 @@ const LandingPage = () => {
           textAlign: "left",
           marginBottom: isMobile ? "0.25rem" : "0.5rem"
         }}>
-          Enter your prompt to begin:
+          <b>Enter one prompt:</b>
         </div>
 
         <Input.TextArea
@@ -116,13 +116,13 @@ const LandingPage = () => {
           textAlign: "left",
           marginBottom: isMobile ? "0.25rem" : "0.5rem"
         }}>
-          Hot Word (will be boosted during generation):
+          <b>Pick a Hot Word/Token:</b> (one special token you can manually boost. Enter any word and if it's more than one token we'll just take the first one)
         </div>
 
         <Input
           value={hotWord}
           onChange={(e) => setHotWord(e.target.value)}
-          placeholder="Enter a word to boost"
+          placeholder="I"
           style={{
             fontSize: isMobile ? "0.9rem" : "1.1rem",
             borderRadius: "8px",
@@ -138,7 +138,7 @@ const LandingPage = () => {
           textAlign: "left",
           marginBottom: isMobile ? "0.25rem" : "0.5rem"
         }}>
-          For best results, use a single word like "the", "and", or "fantastic"
+          
         </small>
 
         <Button
