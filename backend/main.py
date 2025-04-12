@@ -8,6 +8,7 @@ import os
 import math
 import ctypes
 import llama_cpp
+import random
 
 # C Bindings setup
 lib_path = "/Users/jakesimonds/.pyenv/versions/3.11.11/lib/python3.11/site-packages/llama_cpp/lib/libllama.dylib"
@@ -69,11 +70,11 @@ ctx = llama_cpp.llama_new_context_with_model(model, ctx_params)
 print("Context created")
 
 # Initialize Llama model
-llm = Llama(
-    model_path="../models/Llama-3.2-1B-Instruct-Q3_K_L.gguf",
-    n_ctx=2048,
-    n_threads=4,
-)
+# llm = Llama(
+#     model_path="../models/Llama-3.2-1B-Instruct-Q3_K_L.gguf",
+#     n_ctx=2048,
+#     n_threads=4,
+# )
 
 # Add a lock for generation
 generation_lock = asyncio.Lock()
@@ -104,248 +105,184 @@ async def stream_text(
     async def event_generator():
         async with generation_lock:
             try:
-                for chunk in llm.create_completion(
-                    prompt=context,
-                    max_tokens=num_predict,
-                    temperature=temperature,
-                    top_p=top_p,
-                    top_k=top_k,
-                    repeat_penalty=repeat_penalty,
-                    stream=True
-                ):
-                    if chunk['choices'][0]['finish_reason'] is not None:
-                        yield {
-                            "event": "done",
-                            "data": "complete"
-                        }
-                        break
+                # Convert input context to bytes
+                context_bytes = context.encode('utf-8')
+                context_len = len(context_bytes)
+
+                # Create token array
+                max_tokens = llama_cpp.llama_n_ctx(model)
+                tokens = (llama_cpp.llama_token * int(max_tokens))()
+
+                # Tokenize the input context using vocab
+                n_tokens = llama_cpp.llama_tokenize(
+                    vocab,
+                    context_bytes,
+                    context_len,
+                    tokens,
+                    max_tokens,
+                    ctypes.c_bool(True),
+                    ctypes.c_bool(True)
+                )
+
+                print(f"Tokenization complete. Number of tokens: {n_tokens}")
+
+                if n_tokens == 0:
+                    yield {
+                        "event": "error",
+                        "data": "No tokens generated from tokenization."
+                    }
+                    return
+
+                # Create and prepare the batch
+                batch = llama_cpp.llama_batch_init(n_tokens, 0, 1)
+                
+                # Set n_tokens in the batch
+                batch.n_tokens = n_tokens
+                
+                # Fill the batch with tokens
+                for i in range(n_tokens):
+                    batch.token[i] = tokens[i]
+                    batch.pos[i] = i
+                    batch.n_seq_id[i] = 1
+                    batch.seq_id[i][0] = 0
+                    batch.logits[i] = 0
+                
+                # Set logits flag for the last token
+                batch.logits[n_tokens-1] = 1
+                
+                # Process the batch
+                ret = llama_cpp.llama_decode(ctx, batch)
+                print(f"Decode result: {ret}, batch n_tokens: {batch.n_tokens}")
+                
+                if ret != 0:
+                    yield {
+                        "event": "error",
+                        "data": f"Decode failed with return code {ret}"
+                    }
+                    return
+
+                # Keep track of generated tokens to apply repeat penalty
+                last_n_tokens = [tokens[i] for i in range(n_tokens)]
+                
+                # Generate tokens with proper sampling
+                for _ in range(num_predict):
+                    # Get logits for sampling
+                    logits_ptr = llama_cpp.llama_get_logits(ctx)
+                    n_vocab = llama_cpp.llama_n_vocab(vocab)
+                    
+                    # Convert logits to a list we can manipulate
+                    logits = [logits_ptr[i] for i in range(n_vocab)]
+                    
+                    # Apply repeat penalty
+                    if repeat_penalty > 1.0:
+                        for token_id in last_n_tokens:
+                            if token_id < n_vocab:
+                                logits[token_id] /= repeat_penalty
+                    
+                    # Apply temperature
+                    if temperature > 0:
+                        # Scale logits by temperature
+                        for i in range(n_vocab):
+                            logits[i] /= temperature
+                    
+                    # Convert logits to probabilities with softmax
+                    max_logit = max(logits)
+                    exp_logits = [math.exp(logit - max_logit) for logit in logits]
+                    sum_exp_logits = sum(exp_logits)
+                    probs = [exp_logit / sum_exp_logits for exp_logit in exp_logits]
+                    
+                    # Apply top-k filtering
+                    if top_k > 0 and top_k < n_vocab:
+                        indices_and_probs = [(i, p) for i, p in enumerate(probs)]
+                        indices_and_probs.sort(key=lambda x: x[1], reverse=True)
+                        indices_and_probs = indices_and_probs[:top_k]
+                        top_indices = [idx for idx, _ in indices_and_probs]
+                        top_probs = [probs[idx] for idx in top_indices]
+                        # Renormalize probabilities
+                        sum_top_probs = sum(top_probs)
+                        top_probs = [p / sum_top_probs for p in top_probs]
+                    else:
+                        top_indices = list(range(n_vocab))
+                        top_probs = probs
+                    
+                    # Apply top-p (nucleus) sampling
+                    if 0.0 < top_p < 1.0:
+                        indices_and_probs = sorted(zip(top_indices, top_probs), key=lambda x: x[1], reverse=True)
+                        cumulative_prob = 0.0
+                        cutoff_index = 0
+                        for i, (_, p) in enumerate(indices_and_probs):
+                            cumulative_prob += p
+                            if cumulative_prob >= top_p:
+                                cutoff_index = i + 1
+                                break
+                        indices_and_probs = indices_and_probs[:cutoff_index]
+                        top_indices = [idx for idx, _ in indices_and_probs]
+                        top_probs = [probs[idx] for idx in top_indices]
+                        # Renormalize probabilities
+                        sum_top_probs = sum(top_probs)
+                        top_probs = [p / sum_top_probs for p in top_probs]
+                    
+                    # Sample from the filtered distribution
+                    next_token_index = 0
+                    r = random.random()
+                    cdf = 0.0
+                    for i, p in enumerate(top_probs):
+                        cdf += p
+                        if r < cdf:
+                            next_token_index = i
+                            break
+                    
+                    next_token_id = top_indices[next_token_index]
+                    
+                    # Get token text
+                    token_text = llama_cpp.llama_token_get_text(vocab, next_token_id).decode('utf-8', errors='replace')
                     
                     yield {
                         "event": "message",
-                        "data": chunk['choices'][0]['text']
+                        "data": token_text
                     }
-                        
+                    
+                    # Update the context with the new token
+                    last_n_tokens.append(next_token_id)
+                    if len(last_n_tokens) > 64:  # Keep a reasonable number of tokens for repeat penalty
+                        last_n_tokens.pop(0)
+                    
+                    # Create a new batch with just the generated token
+                    next_batch = llama_cpp.llama_batch_init(1, 0, 1)
+                    next_batch.n_tokens = 1
+                    next_batch.token[0] = next_token_id
+                    next_batch.pos[0] = n_tokens  # Correct position for the new token
+                    next_batch.n_seq_id[0] = 1
+                    next_batch.seq_id[0][0] = 0
+                    next_batch.logits[0] = 1  # We want logits for this token
+                    
+                    # Decode with the new token
+                    ret = llama_cpp.llama_decode(ctx, next_batch)
+                    if ret != 0:
+                        print(f"Warning: Decode failed for generated token with ret={ret}")
+                        break
+                    
+                    n_tokens += 1  # Increment position counter for next token
+                    
+                    # Free the token batch
+                    llama_cpp.llama_batch_free(next_batch)
+
+                yield {
+                    "event": "done",
+                    "data": "complete"
+                }
+                
+                # Free the main batch
+                llama_cpp.llama_batch_free(batch)
+
             except Exception as e:
                 print(f"Generation error: {str(e)}")
                 yield {
                     "event": "error",
                     "data": str(e)
                 }
-    
+
     return EventSourceResponse(event_generator())
-
-@app.post("/update-params")
-async def update_parameters(new_params: Dict):
-    global ctx_params
-    ctx_params.update(new_params)
-    return {"status": "success", "params": ctx_params}
-
-@app.get("/token-probs")
-async def get_token_probabilities():
-    try:
-        # Get the BOS and EOS token IDs using the Python API
-        bos_token = llm.token_bos()
-        eos_token = llm.token_eos()
-        
-        # Get logits using the Python API
-        logits = llm.eval_logits()
-        if logits is None:
-            return {"status": "error", "message": "Could not get logits"}
-        
-        # Get the logit values for BOS and EOS tokens
-        bos_logit = logits[bos_token]
-        eos_logit = logits[eos_token]
-        
-        # Convert logits to probabilities using softmax
-        bos_prob = math.exp(bos_logit) / (math.exp(bos_logit) + math.exp(eos_logit))
-        eos_prob = math.exp(eos_logit) / (math.exp(bos_logit) + math.exp(eos_logit))
-        
-        print(f"BOS token (id={bos_token}) probability: {bos_prob}")
-        print(f"EOS token (id={eos_token}) probability: {eos_prob}")
-        
-        return {
-            "status": "success",
-            "bos_token_id": bos_token,
-            "bos_probability": bos_prob,
-            "eos_token_id": eos_token,
-            "eos_probability": eos_prob
-        }
-    except Exception as e:
-        print(f"Error getting token probabilities: {str(e)}")
-        return {
-            "status": "error",
-            "message": f"Error getting token probabilities: {str(e)}"
-        }
-
-@app.get("/logits")
-async def get_logits():
-    try:
-        # Get the context pointer
-        ctx_ptr = llm.context
-        if not ctx_ptr:
-            return {"status": "error", "message": "Context not initialized"}
-        
-        # Get logits pointer
-        logits_ptr = llama_get_logits(ctx_ptr)
-        if not logits_ptr:
-            return {"status": "error", "message": "Could not get logits"}
-            
-        # Get specific token IDs we care about
-        eos_token = llama_token_eos(ctx_ptr)
-        bos_token = llama_token_bos(ctx_ptr)
-        
-        # Get their logit values
-        eos_logit = logits_ptr[eos_token]
-        bos_logit = logits_ptr[bos_token]
-        
-        # Convert to probabilities
-        total = math.exp(eos_logit) + math.exp(bos_logit)
-        eos_prob = math.exp(eos_logit) / total
-        bos_prob = math.exp(bos_logit) / total
-        
-        return {
-            "status": "success",
-            "logits": {
-                "eos": {
-                    "token_id": eos_token,
-                    "logit": float(eos_logit),
-                    "probability": float(eos_prob)
-                },
-                "bos": {
-                    "token_id": bos_token,
-                    "logit": float(bos_logit),
-                    "probability": float(bos_prob)
-                }
-            }
-        }
-    except Exception as e:
-        print(f"Error accessing logits: {str(e)}")
-        return {"status": "error", "message": str(e)}
-
-@app.get("/test-c-bindings")
-async def test_c_bindings():
-    try:
-        # First, let's print what we have
-        print(f"Model type: {type(llm._model)}")
-        print(f"Context type: {type(llm._ctx)}")
-        print(f"Model value: {llm._model}")
-        print(f"Context value: {llm._ctx}")
-        
-        # Get the model pointer
-        model_ptr = ctypes.c_void_p(llm._model)
-        if not model_ptr:
-            return {"status": "error", "message": "Model not initialized"}
-            
-        # Get the context pointer
-        ctx_ptr = ctypes.c_void_p(llm._ctx)
-        if not ctx_ptr:
-            return {"status": "error", "message": "Context not initialized"}
-        
-        # Test getting BOS and EOS tokens
-        bos_token = llama_token_bos(model_ptr)  # Try with model pointer instead
-        eos_token = llama_token_eos(model_ptr)  # Try with model pointer instead
-        print(f"BOS token: {bos_token}, EOS token: {eos_token}")
-        
-        # Test getting logits
-        logits_ptr = llama_get_logits(ctx_ptr)
-        if logits_ptr:
-            print("Successfully got logits pointer")
-            # Try to read a value to make sure it's accessible
-            test_logit = logits_ptr[0]
-            print(f"First logit value: {test_logit}")
-            return {
-                "status": "success", 
-                "message": "C bindings test successful",
-                "details": {
-                    "bos_token": bos_token,
-                    "eos_token": eos_token,
-                    "first_logit": float(test_logit)
-                }
-            }
-        else:
-            return {"status": "error", "message": "Failed to get logits"}
-            
-    except Exception as e:
-        print(f"C bindings test error: {str(e)}")
-        return {"status": "error", "message": str(e)}
-
-@app.get("/test-tokenize")
-async def test_tokenize(text: str = Query(default="Hello, world!")):
-    try:
-        # Convert input text to bytes
-        text_bytes = text.encode('utf-8')
-        
-        # Create token array
-        max_tokens = ctx_params.n_ctx
-        tokens = (llama_cpp.llama_token * int(max_tokens))()
-        
-        # Tokenize
-        n_tokens = llama_cpp.llama_tokenize(
-            ctx,
-            text_bytes,
-            tokens,
-            max_tokens,
-            llama_cpp.c_bool(True)
-        )
-        
-        # Convert token array to list for response
-        token_list = [tokens[i] for i in range(n_tokens)]
-        
-        return {
-            "status": "success",
-            "text": text,
-            "n_tokens": n_tokens,
-            "tokens": token_list
-        }
-        
-    except Exception as e:
-        print(f"Error in tokenization: {str(e)}")
-        return {"status": "error", "message": str(e)}
-
-@app.get("/test-low-level")
-async def test_low_level(text: str = Query(default="Hello, world!")):
-    try:
-        print(f"Testing with input: {text}")
-        
-        # Convert input text to bytes
-        text_bytes = text.encode('utf-8')
-        text_len = len(text_bytes)  # Get the length of the input text
-        
-        # Create token array
-        max_tokens = llama_cpp.llama_n_ctx(model)  # Get the context size from the model
-        tokens = (llama_cpp.llama_token * int(max_tokens))()  # Create an array of tokens
-        
-        # Tokenize
-        n_tokens = llama_cpp.llama_tokenize(
-            vocab,  # Pass the vocabulary pointer
-            text_bytes,
-            text_len,  # Pass the length of the text
-            tokens,
-            max_tokens,
-            ctypes.c_bool(True),  # Add special tokens
-            ctypes.c_bool(True)   # Parse special tokens
-        )
-        
-        print(f"Tokenization complete. Number of tokens: {n_tokens}")
-        
-        # Get token strings
-        token_strs = []
-        for i in range(n_tokens):
-            token_str = llama_cpp.llama_token_get_text(vocab, tokens[i])
-            if token_str:
-                token_strs.append(token_str.decode('utf-8', errors='ignore'))
-        
-        return {
-            "status": "success",
-            "text": text,
-            "n_tokens": n_tokens,
-            "tokens": [int(tokens[i]) for i in range(n_tokens)],
-            "token_strings": token_strs
-        }
-        
-    except Exception as e:
-        print(f"Error in low-level test: {str(e)}")
-        return {"status": "error", "message": str(e)}
 
 # Cleanup on shutdown
 @app.on_event("shutdown")
