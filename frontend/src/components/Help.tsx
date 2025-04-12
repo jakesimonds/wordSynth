@@ -1,5 +1,5 @@
 import React from 'react';
-import { Modal, Button } from 'antd';
+import { Modal } from 'antd';
 
 interface HelpProps {
   isVisible: boolean;
@@ -9,23 +9,17 @@ interface HelpProps {
 const Help: React.FC<HelpProps> = ({ isVisible, onClose }) => {
   return (
     <Modal
-      title="WordSynth Help"
+      title="Info"
       open={isVisible}
       onCancel={onClose}
-      footer={[
-        <Button key="close" onClick={onClose}>
-          Close
-        </Button>
-      ]}
+      footer={null}
       width={800}
     >
       <div style={{ padding: '10px', fontSize: '16px', lineHeight: '1.6' }}>
         <h2>Word Synth!</h2>
         
-
         <p>
           If you're overwhelmed, press pause. 
-                    
         </p>
         
         <h3>What is it?</h3>

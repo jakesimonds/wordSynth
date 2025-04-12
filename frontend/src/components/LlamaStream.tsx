@@ -919,7 +919,7 @@ const LlamaStream = () => {
               </div>
               <div style={{ width: '100%' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                  <span>Hot Word Boost: </span>
+                  <span>Hot Token Boost: </span>
                   <span>×{params.hot_word_boost.toFixed(1)}</span>
                 </div>
                 <Slider
@@ -931,29 +931,7 @@ const LlamaStream = () => {
                   style={{ width: '100%' }}
                 />
                 <div style={{ fontSize: '0.8em', color: '#666', marginTop: '4px' }}>
-                  Boosts probability of "{hotWord}". Higher = more likely to appear.
-                </div>
-              </div>
-            </Space>
-          </Card>
-
-          <Card title={`Hot Word Boost: "${hotWord}"`}>
-            <Space direction="vertical" style={{ width: '100%', display: 'flex', alignItems: 'flex-start' }}>
-              <div style={{ width: '100%' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                  <span>Boost Amount: </span>
-                  <span>×{params.hot_word_boost.toFixed(1)}</span>
-                </div>
-                <Slider
-                  min={1}
-                  max={10}
-                  step={0.1}
-                  value={params.hot_word_boost}
-                  onChange={(value: number) => updateParameter("hot_word_boost", value)}
-                  style={{ width: '100%' }}
-                />
-                <div style={{ fontSize: '0.8em', color: '#666', marginTop: '4px' }}>
-                  Boosts probability of "{hotWord}". Higher = more likely to appear.
+                  Boosts probability of <strong>{hotWord}</strong>. Higher = more likely to appear.
                 </div>
               </div>
             </Space>
