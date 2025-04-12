@@ -494,9 +494,9 @@ const LlamaStream = () => {
         }}
       >
         <div 
-          className="sidebar"
+          className="left-sidebar"
           style={{ 
-            flex: "0 0 300px"
+            flex: "0 0 250px"
           }}
         >
           <Space direction="vertical" style={{ width: '100%', gap: '16px' }}>
@@ -565,173 +565,22 @@ const LlamaStream = () => {
               </Space>
             </Card>
 
-            <Card title="Model Parameters">
-              <Space direction="vertical" style={{ width: '100%', display: 'flex', alignItems: 'flex-start' }}>
-                <div style={{ width: '100%' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                    <span>Temperature: </span>
-                    <span>{params.temperature.toFixed(2)}</span>
-                  </div>
-                  <Slider
-                    min={0}
-                    max={1}
-                    step={0.01}
-                    value={params.temperature}
-                    onChange={(value: number) => updateParameter("temperature", value)}
-                    style={{ width: '100%' }}
-                  />
-                </div>
-                
-                <div style={{ width: '100%' }}>
-                  <span>Mirostat Mode: </span>
-                  <Select
-                    value={params.mirostat_mode}
-                    onChange={(value: number) => updateParameter("mirostat_mode", value)}
-                    style={{ width: '100%' }}
-                  >
-                    <Select.Option value={0}>Disabled</Select.Option>
-                    <Select.Option value={1}>Mirostat</Select.Option>
-                    <Select.Option value={2}>Mirostat 2.0</Select.Option>
-                  </Select>
-                </div>
-                
-                {isMirostatEnabled && (
-                  <>
-                    <div style={{ width: '100%' }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                        <span>Mirostat Tau: </span>
-                        <span>{params.mirostat_tau.toFixed(1)}</span>
-                      </div>
-                      <Slider
-                        min={1.0}
-                        max={10.0}
-                        step={0.1}
-                        value={params.mirostat_tau}
-                        onChange={(value: number) => updateParameter("mirostat_tau", value)}
-                        style={{ width: '100%' }}
-                      />
-                    </div>
-                    <div style={{ width: '100%' }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                        <span>Mirostat Eta: </span>
-                        <span>{params.mirostat_eta.toFixed(3)}</span>
-                      </div>
-                      <Slider
-                        min={0.001}
-                        max={1.0}
-                        step={0.001}
-                        value={params.mirostat_eta}
-                        onChange={(value: number) => updateParameter("mirostat_eta", value)}
-                        style={{ width: '100%' }}
-                      />
-                    </div>
-                  </>
-                )}
-                
-                <div style={{ width: '100%' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                    <span>Top_p: </span>
-                    <span>{params.top_p.toFixed(2)}</span>
-                  </div>
-                  <Slider
-                    min={0}
-                    max={1}
-                    step={0.01}
-                    value={params.top_p}
-                    onChange={(value: number) => updateParameter("top_p", value)}
-                    disabled={isMirostatEnabled}
-                    style={{ width: '100%' }}
-                  />
-                </div>
-                <div style={{ width: '100%' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                    <span>Top_k: </span>
-                    <span>{params.top_k}</span>
-                  </div>
-                  <Slider
-                    min={1}
-                    max={100}
-                    step={1}
-                    value={params.top_k}
-                    onChange={(value: number) => updateParameter("top_k", value)}
-                    disabled={isMirostatEnabled}
-                    style={{ width: '100%' }}
-                  />
-                </div>
-                <div style={{ width: '100%' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                    <span>Repeat Penalty: </span>
-                    <span>{params.repeat_penalty.toFixed(2)}</span>
-                  </div>
-                  <Slider
-                    min={1.0}
-                    max={2.0}
-                    step={0.05}
-                    value={params.repeat_penalty}
-                    onChange={(value: number) => updateParameter("repeat_penalty", value)}
-                    style={{ width: '100%' }}
-                  />
-                </div>
-                <div style={{ width: '100%' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                    <span>Presence Penalty: </span>
-                    <span>{params.presence_penalty.toFixed(2)}</span>
-                  </div>
-                  <Slider
-                    min={0.0}
-                    max={1.0}
-                    step={0.05}
-                    value={params.presence_penalty}
-                    onChange={(value: number) => updateParameter("presence_penalty", value)}
-                    style={{ width: '100%' }}
-                  />
-                </div>
-                <div style={{ width: '100%' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                    <span>Frequency Penalty: </span>
-                    <span>{params.frequency_penalty.toFixed(2)}</span>
-                  </div>
-                  <Slider
-                    min={0.0}
-                    max={1.0}
-                    step={0.05}
-                    value={params.frequency_penalty}
-                    onChange={(value: number) => updateParameter("frequency_penalty", value)}
-                    style={{ width: '100%' }}
-                  />
-                </div>
-                <div style={{ width: '100%' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                    <span>Tokens to Generate: </span>
-                    <span>{params.num_predict}</span>
-                  </div>
-                  <Slider
-                    min={4}
-                    max={128}
-                    step={4}
-                    value={params.num_predict}
-                    onChange={(value: number) => updateParameter("num_predict", value)}
-                    style={{ width: '100%' }}
-                  />
-                </div>
-                <button
-                  onClick={togglePause}
-                  style={{
-                    width: "100%",
-                    padding: "12px",
-                    marginBottom: "26px",
-                    fontSize: "28px",
-                    backgroundColor: isPaused ? "#4CAF50" : "#f44336",
-                    color: "white",
-                    border: "none",
-                    borderRadius: "4px",
-                    cursor: "pointer"
-                  }}
-                >
-                  {isPaused ? "Resume" : "Pause"}
-                </button>
-              </Space>
-            </Card>
+            <button
+              onClick={togglePause}
+              style={{
+                width: "100%",
+                padding: "12px",
+                marginBottom: "26px",
+                fontSize: "28px",
+                backgroundColor: isPaused ? "#4CAF50" : "#f44336",
+                color: "white",
+                border: "none",
+                borderRadius: "4px",
+                cursor: "pointer"
+              }}
+            >
+              {isPaused ? "Resume" : "Pause"}
+            </button>
           </Space>
         </div>
 
@@ -748,7 +597,10 @@ const LlamaStream = () => {
         >
           <Card 
             title="Current Response" 
-            style={{ height: "300px", marginBottom: "16px" }}
+            style={{ 
+              height: "300px",
+              marginBottom: "16px"
+            }}
           >
             <div style={{
               height: "250px",
@@ -766,9 +618,17 @@ const LlamaStream = () => {
 
           <Card 
             title="Past Responses"
-            style={{ flex: 1, overflow: "auto", minHeight: 0 }}
+            style={{
+              flex: 1,
+              overflow: "auto",
+              minHeight: 0
+            }}
           >
-            <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+            <div style={{
+              display: "flex",
+              flexDirection: "column",
+              gap: "8px"
+            }}>
               {(() => {
                 const maxSlots = 15;
                 const displayed = [...(generations.length > maxSlots
@@ -833,6 +693,165 @@ const LlamaStream = () => {
                 );
               })()}
             </div>
+          </Card>
+        </div>
+
+        <div 
+          className="right-sidebar"
+          style={{ 
+            flex: "0 0 250px"
+          }}
+        >
+          <Card title="Model Parameters">
+            <Space direction="vertical" style={{ width: '100%', display: 'flex', alignItems: 'flex-start' }}>
+              <div style={{ width: '100%' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <span>Temperature: </span>
+                  <span>{params.temperature.toFixed(2)}</span>
+                </div>
+                <Slider
+                  min={0}
+                  max={1}
+                  step={0.01}
+                  value={params.temperature}
+                  onChange={(value: number) => updateParameter("temperature", value)}
+                  style={{ width: '100%' }}
+                />
+              </div>
+              
+              <div style={{ width: '100%' }}>
+                <span>Mirostat Mode: </span>
+                <Select
+                  value={params.mirostat_mode}
+                  onChange={(value: number) => updateParameter("mirostat_mode", value)}
+                  style={{ width: '100%' }}
+                >
+                  <Select.Option value={0}>Disabled</Select.Option>
+                  <Select.Option value={1}>Mirostat</Select.Option>
+                  <Select.Option value={2}>Mirostat 2.0</Select.Option>
+                </Select>
+              </div>
+              
+              {isMirostatEnabled && (
+                <>
+                  <div style={{ width: '100%' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                      <span>Mirostat Tau: </span>
+                      <span>{params.mirostat_tau.toFixed(1)}</span>
+                    </div>
+                    <Slider
+                      min={1.0}
+                      max={10.0}
+                      step={0.1}
+                      value={params.mirostat_tau}
+                      onChange={(value: number) => updateParameter("mirostat_tau", value)}
+                      style={{ width: '100%' }}
+                    />
+                  </div>
+                  <div style={{ width: '100%' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                      <span>Mirostat Eta: </span>
+                      <span>{params.mirostat_eta.toFixed(3)}</span>
+                    </div>
+                    <Slider
+                      min={0.001}
+                      max={1.0}
+                      step={0.001}
+                      value={params.mirostat_eta}
+                      onChange={(value: number) => updateParameter("mirostat_eta", value)}
+                      style={{ width: '100%' }}
+                    />
+                  </div>
+                </>
+              )}
+              
+              <div style={{ width: '100%' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <span>Top_p: </span>
+                  <span>{params.top_p.toFixed(2)}</span>
+                </div>
+                <Slider
+                  min={0}
+                  max={1}
+                  step={0.01}
+                  value={params.top_p}
+                  onChange={(value: number) => updateParameter("top_p", value)}
+                  disabled={isMirostatEnabled}
+                  style={{ width: '100%' }}
+                />
+              </div>
+              <div style={{ width: '100%' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <span>Top_k: </span>
+                  <span>{params.top_k}</span>
+                </div>
+                <Slider
+                  min={1}
+                  max={100}
+                  step={1}
+                  value={params.top_k}
+                  onChange={(value: number) => updateParameter("top_k", value)}
+                  disabled={isMirostatEnabled}
+                  style={{ width: '100%' }}
+                />
+              </div>
+              <div style={{ width: '100%' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <span>Repeat Penalty: </span>
+                  <span>{params.repeat_penalty.toFixed(2)}</span>
+                </div>
+                <Slider
+                  min={1.0}
+                  max={2.0}
+                  step={0.05}
+                  value={params.repeat_penalty}
+                  onChange={(value: number) => updateParameter("repeat_penalty", value)}
+                  style={{ width: '100%' }}
+                />
+              </div>
+              <div style={{ width: '100%' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <span>Presence Penalty: </span>
+                  <span>{params.presence_penalty.toFixed(2)}</span>
+                </div>
+                <Slider
+                  min={0.0}
+                  max={1.0}
+                  step={0.05}
+                  value={params.presence_penalty}
+                  onChange={(value: number) => updateParameter("presence_penalty", value)}
+                  style={{ width: '100%' }}
+                />
+              </div>
+              <div style={{ width: '100%' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <span>Frequency Penalty: </span>
+                  <span>{params.frequency_penalty.toFixed(2)}</span>
+                </div>
+                <Slider
+                  min={0.0}
+                  max={1.0}
+                  step={0.05}
+                  value={params.frequency_penalty}
+                  onChange={(value: number) => updateParameter("frequency_penalty", value)}
+                  style={{ width: '100%' }}
+                />
+              </div>
+              <div style={{ width: '100%' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <span>Tokens to Generate: </span>
+                  <span>{params.num_predict}</span>
+                </div>
+                <Slider
+                  min={4}
+                  max={128}
+                  step={4}
+                  value={params.num_predict}
+                  onChange={(value: number) => updateParameter("num_predict", value)}
+                  style={{ width: '100%' }}
+                />
+              </div>
+            </Space>
           </Card>
         </div>
       </div>
