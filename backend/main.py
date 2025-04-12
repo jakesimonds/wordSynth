@@ -105,6 +105,9 @@ async def stream_text(
     async def event_generator():
         async with generation_lock:
             try:
+                # Clear KV cache before starting a new request
+                llama_cpp.llama_kv_cache_clear(ctx)
+                
                 # Convert input context to bytes
                 context_bytes = context.encode('utf-8')
                 context_len = len(context_bytes)
@@ -159,114 +162,147 @@ async def stream_text(
                         "event": "error",
                         "data": f"Decode failed with return code {ret}"
                     }
+                    # Clean up resources
+                    llama_cpp.llama_batch_free(batch)
+                    llama_cpp.llama_kv_cache_clear(ctx)
                     return
 
-                # Keep track of generated tokens to apply repeat penalty
-                last_n_tokens = [tokens[i] for i in range(n_tokens)]
+                # Track tokens to implement repeat penalty
+                last_tokens = [tokens[i] for i in range(n_tokens)]
+                generated_text = ""
                 
                 # Generate tokens with proper sampling
-                for _ in range(num_predict):
-                    # Get logits for sampling
-                    logits_ptr = llama_cpp.llama_get_logits(ctx)
-                    n_vocab = llama_cpp.llama_n_vocab(vocab)
-                    
-                    # Convert logits to a list we can manipulate
-                    logits = [logits_ptr[i] for i in range(n_vocab)]
-                    
-                    # Apply repeat penalty
-                    if repeat_penalty > 1.0:
-                        for token_id in last_n_tokens:
-                            if token_id < n_vocab:
-                                logits[token_id] /= repeat_penalty
-                    
-                    # Apply temperature
-                    if temperature > 0:
-                        # Scale logits by temperature
-                        for i in range(n_vocab):
-                            logits[i] /= temperature
-                    
-                    # Convert logits to probabilities with softmax
-                    max_logit = max(logits)
-                    exp_logits = [math.exp(logit - max_logit) for logit in logits]
-                    sum_exp_logits = sum(exp_logits)
-                    probs = [exp_logit / sum_exp_logits for exp_logit in exp_logits]
-                    
-                    # Apply top-k filtering
-                    if top_k > 0 and top_k < n_vocab:
-                        indices_and_probs = [(i, p) for i, p in enumerate(probs)]
-                        indices_and_probs.sort(key=lambda x: x[1], reverse=True)
-                        indices_and_probs = indices_and_probs[:top_k]
-                        top_indices = [idx for idx, _ in indices_and_probs]
-                        top_probs = [probs[idx] for idx in top_indices]
-                        # Renormalize probabilities
-                        sum_top_probs = sum(top_probs)
-                        top_probs = [p / sum_top_probs for p in top_probs]
-                    else:
-                        top_indices = list(range(n_vocab))
-                        top_probs = probs
-                    
-                    # Apply top-p (nucleus) sampling
-                    if 0.0 < top_p < 1.0:
-                        indices_and_probs = sorted(zip(top_indices, top_probs), key=lambda x: x[1], reverse=True)
-                        cumulative_prob = 0.0
-                        cutoff_index = 0
-                        for i, (_, p) in enumerate(indices_and_probs):
-                            cumulative_prob += p
-                            if cumulative_prob >= top_p:
-                                cutoff_index = i + 1
-                                break
-                        indices_and_probs = indices_and_probs[:cutoff_index]
-                        top_indices = [idx for idx, _ in indices_and_probs]
-                        top_probs = [probs[idx] for idx in top_indices]
-                        # Renormalize probabilities
-                        sum_top_probs = sum(top_probs)
-                        top_probs = [p / sum_top_probs for p in top_probs]
-                    
-                    # Sample from the filtered distribution
-                    next_token_index = 0
-                    r = random.random()
-                    cdf = 0.0
-                    for i, p in enumerate(top_probs):
-                        cdf += p
-                        if r < cdf:
-                            next_token_index = i
+                pos = n_tokens
+                for token_idx in range(num_predict):
+                    try:
+                        # Synchronize the context after each decode
+                        llama_cpp.llama_synchronize(ctx)
+                        
+                        # Get logits for sampling
+                        logits_ptr = llama_cpp.llama_get_logits(ctx)
+                        n_vocab = llama_cpp.llama_n_vocab(vocab)
+                        
+                        # Convert logits to a list we can manipulate
+                        logits = [logits_ptr[i] for i in range(n_vocab)]
+                        
+                        # Apply repeat penalty
+                        if repeat_penalty > 1.0:
+                            for token_id in last_tokens[-min(len(last_tokens), 64):]:
+                                if token_id < n_vocab:
+                                    logits[token_id] /= repeat_penalty
+                        
+                        # Handle top_k=1 or temperature=0 cases as purely deterministic
+                        if top_k == 1 or temperature <= 0.0:
+                            next_token_id = max(range(n_vocab), key=lambda i: logits[i])
+                        else:
+                            # Apply temperature to logits
+                            for i in range(n_vocab):
+                                logits[i] /= temperature
+                            
+                            # Convert logits to probabilities with softmax
+                            max_logit = max(logits)
+                            exp_logits = [math.exp(logit - max_logit) for logit in logits]
+                            sum_exp_logits = sum(exp_logits)
+                            probs = [exp_logit / sum_exp_logits for exp_logit in exp_logits]
+                            
+                            # Apply top-k filtering
+                            if top_k < n_vocab:
+                                indices_and_probs = [(i, p) for i, p in enumerate(probs)]
+                                indices_and_probs.sort(key=lambda x: x[1], reverse=True)
+                                indices_and_probs = indices_and_probs[:top_k]
+                                top_indices = [idx for idx, _ in indices_and_probs]
+                                top_probs = [probs[idx] for idx in top_indices]
+                                # Renormalize probabilities
+                                sum_top_probs = sum(top_probs)
+                                top_probs = [p / sum_top_probs for p in top_probs]
+                            else:
+                                top_indices = list(range(n_vocab))
+                                top_probs = probs
+                            
+                            # Apply top-p (nucleus) sampling
+                            if 0.0 < top_p < 1.0:
+                                indices_and_probs = sorted(zip(top_indices, top_probs), key=lambda x: x[1], reverse=True)
+                                cumulative_prob = 0.0
+                                cutoff_index = 0
+                                for i, (_, p) in enumerate(indices_and_probs):
+                                    cumulative_prob += p
+                                    if cumulative_prob >= top_p:
+                                        cutoff_index = i + 1
+                                        break
+                                indices_and_probs = indices_and_probs[:cutoff_index]
+                                top_indices = [idx for idx, _ in indices_and_probs]
+                                top_probs = [probs[idx] for idx in top_indices]
+                                # Renormalize probabilities
+                                sum_top_probs = sum(top_probs)
+                                top_probs = [p / sum_top_probs for p in top_probs]
+                            
+                            # Sample from the filtered distribution
+                            r = random.random()
+                            cdf = 0.0
+                            next_token_index = 0
+                            for i, p in enumerate(top_probs):
+                                cdf += p
+                                if r < cdf:
+                                    next_token_index = i
+                                    break
+                            
+                            next_token_id = top_indices[next_token_index]
+                        
+                        # Get token text using llama_vocab_get_text
+                        token_bytes = llama_cpp.llama_vocab_get_text(vocab, next_token_id)
+                        token_text = token_bytes.decode('utf-8', errors='replace')
+                        
+                        # Clean up special tokens
+                        clean_text = token_text.replace('Ġ', ' ').replace('Ċ', '\n')
+                        
+                        # Fix first token if needed
+                        if token_idx == 0 and clean_text.startswith(' '):
+                            clean_text = clean_text[1:]
+                            
+                        # Build up the running text
+                        generated_text += clean_text
+                        
+                        print(f"Generated token {token_idx+1}/{num_predict}: {next_token_id} ('{clean_text}')")
+                        
+                        yield {
+                            "event": "message",
+                            "data": clean_text
+                        }
+                        
+                        # Update the context with the new token
+                        last_tokens.append(next_token_id)
+                        
+                        # Create a new batch with just the generated token
+                        next_batch = llama_cpp.llama_batch_init(1, 0, 1)
+                        next_batch.n_tokens = 1
+                        next_batch.token[0] = next_token_id
+                        next_batch.pos[0] = pos  # Position for the new token
+                        next_batch.n_seq_id[0] = 1
+                        next_batch.seq_id[0][0] = 0
+                        next_batch.logits[0] = 1  # We want logits for this token
+                        
+                        # Decode with the new token
+                        ret = llama_cpp.llama_decode(ctx, next_batch)
+                        if ret != 0:
+                            print(f"Warning: Decode failed for token {token_idx+1} with ret={ret}")
+                            # Free resources and exit gracefully
+                            llama_cpp.llama_batch_free(next_batch)
                             break
-                    
-                    next_token_id = top_indices[next_token_index]
-                    
-                    # Get token text
-                    token_text = llama_cpp.llama_token_get_text(vocab, next_token_id).decode('utf-8', errors='replace')
-                    
-                    yield {
-                        "event": "message",
-                        "data": token_text
-                    }
-                    
-                    # Update the context with the new token
-                    last_n_tokens.append(next_token_id)
-                    if len(last_n_tokens) > 64:  # Keep a reasonable number of tokens for repeat penalty
-                        last_n_tokens.pop(0)
-                    
-                    # Create a new batch with just the generated token
-                    next_batch = llama_cpp.llama_batch_init(1, 0, 1)
-                    next_batch.n_tokens = 1
-                    next_batch.token[0] = next_token_id
-                    next_batch.pos[0] = n_tokens  # Correct position for the new token
-                    next_batch.n_seq_id[0] = 1
-                    next_batch.seq_id[0][0] = 0
-                    next_batch.logits[0] = 1  # We want logits for this token
-                    
-                    # Decode with the new token
-                    ret = llama_cpp.llama_decode(ctx, next_batch)
-                    if ret != 0:
-                        print(f"Warning: Decode failed for generated token with ret={ret}")
+                        
+                        pos += 1  # Increment position counter for next token
+                        
+                        # Free the token batch
+                        llama_cpp.llama_batch_free(next_batch)
+                        
+                    except Exception as e:
+                        print(f"Error generating token {token_idx+1}: {str(e)}")
+                        yield {
+                            "event": "message",
+                            "data": f" [error: {str(e)}] "
+                        }
                         break
-                    
-                    n_tokens += 1  # Increment position counter for next token
-                    
-                    # Free the token batch
-                    llama_cpp.llama_batch_free(next_batch)
 
+                print(f"Generated full text: {generated_text}")
                 yield {
                     "event": "done",
                     "data": "complete"
@@ -274,6 +310,9 @@ async def stream_text(
                 
                 # Free the main batch
                 llama_cpp.llama_batch_free(batch)
+                
+                # Clear KV cache after completing the request
+                llama_cpp.llama_kv_cache_clear(ctx)
 
             except Exception as e:
                 print(f"Generation error: {str(e)}")
@@ -281,6 +320,8 @@ async def stream_text(
                     "event": "error",
                     "data": str(e)
                 }
+                # Ensure KV cache is cleared even on error
+                llama_cpp.llama_kv_cache_clear(ctx)
 
     return EventSourceResponse(event_generator())
 
