@@ -87,9 +87,10 @@ llama_cpp.llama_backend_init(False)
 
 # Load model once at startup
 print("Loading model...")
+model_path = os.environ.get("MODEL_PATH", "../models/Llama-3.2-1B-Instruct-Q3_K_L.gguf")
 model_params = llama_cpp.llama_model_default_params()
 print("Model params created")
-model = llama_cpp.llama_load_model_from_file(b"../models/Llama-3.2-1B-Instruct-Q3_K_L.gguf", model_params)
+model = llama_cpp.llama_load_model_from_file(model_path.encode('utf-8'), model_params)
 print("Model loaded")
 ctx_params = llama_cpp.llama_context_default_params()
 print("Context params created")
@@ -186,8 +187,8 @@ async def startup_event():
     
     # Load the model
     global model
-    model = llama_cpp.llama_load_model_from_file(b"../models/Llama-3.2-1B-Instruct-Q3_K_L.gguf", llama_cpp.llama_model_default_params())
-    
+    #model = llama_cpp.llama_load_model_from_file(b"../models/Llama-3.2-1B-Instruct-Q3_K_L.gguf", llama_cpp.llama_model_default_params())
+    model = llama_cpp.llama_load_model_from_file(model_path.encode('utf-8'), llama_cpp.llama_model_default_params())
     # Get the vocabulary
     global vocab
     vocab = llama_cpp.llama_model_get_vocab(model)  # Retrieve the vocabulary
@@ -589,40 +590,23 @@ async def stream_text(
                         import traceback
                         error_trace = traceback.format_exc()
                         error_type = type(e).__name__
-                        error_msg = str(e)
-                        
-                        print(f"Generation error type: {error_type}")
-                        print(f"Generation error message: {error_msg}")
+                        print(f"Generation error: {str(e)}")
+                        print(f"Error type: {error_type}")
                         print(f"Detailed traceback:\n{error_trace}")
                         
-                        # Print some context about variables involved
-                        try:
-                            # Try to print any relevant variables that might be involved
-                            ctx_type = type(ctx).__name__ if 'ctx' in locals() else "Not available"
-                            model_type = type(model).__name__ if 'model' in locals() else "Not available"
-                            vocab_type = type(vocab).__name__ if 'vocab' in locals() else "Not available"
-                            
-                            print(f"Context type: {ctx_type}, Model type: {model_type}, Vocab type: {vocab_type}")
-                            
-                            # If the error happens during token generation, try to print token info
-                            if 'logits' in locals():
-                                print(f"Logits length: {len(logits)}")
-                            if 'next_token_id' in locals():
-                                print(f"Selected token ID: {next_token_id}")
-                            if 'actual_hot_word_id' in locals():
-                                print(f"Hot word token ID: {actual_hot_word_id}")
-                        except Exception as debug_error:
-                            print(f"Error while trying to print debug info: {str(debug_error)}")
+                        # Debug model path
+                        print(f"Using model path: {model_path}")
                         
-                        # Send the detailed error back to the client
-                        yield {"event": "error", "data": f"{error_type}: {error_msg}"}
+                        # Check if model file exists
+                        import os.path
+                        if not os.path.exists(model_path):
+                            print(f"ERROR: Model file does not exist at {model_path}")
+                        else:
+                            print(f"Model file exists at {model_path}")
                         
+                        yield {"event": "error", "data": f"{error_type}: {str(e)}"}
                         # Ensure KV cache is cleared even on error
-                        try:
-                            llama_cpp.llama_kv_cache_clear(ctx)
-                            print("KV cache cleared after error")
-                        except Exception as cleanup_error:
-                            print(f"Error clearing KV cache: {str(cleanup_error)}")
+                        llama_cpp.llama_kv_cache_clear(ctx)
                 
                 print(f"\nGenerated full text: {generated_text}")
                 yield {"event": "done", "data": "complete"}
