@@ -373,8 +373,8 @@ const LlamaStream = () => {
       [paramName]: value,
     }));
   };
-
-  const { generations, currentText, currentTokens, isConnected } = useStreamingGenerations(
+// omg
+  const { generations, currentText, currentTokens } = useStreamingGenerations(
     params, 
     isPaused, 
     currentContext,
