@@ -157,41 +157,48 @@ def get_token_id(text: str) -> tuple:
 # Improved token identification for the hot word
 def get_hot_word_token(word: str) -> int:
     """Get the token ID for a given word, properly handling tokenization"""
-    # Always use the space-prefixed version for consistency with how text is typically tokenized
-    prefixed_word = " " + word
-    prefixed_bytes = prefixed_word.encode('utf-8')
+    # Try both with and without space prefix
+    versions_to_try = [word, " " + word]
     
-    # Create a token array
-    max_tokens = 8  # Allow several tokens for debugging
-    tokens = (llama_cpp.llama_token * max_tokens)()
-    
-    # Tokenize the word
-    n_tokens = llama_cpp.llama_tokenize(
-        vocab,
-        prefixed_bytes,
-        len(prefixed_bytes),
-        tokens,
-        max_tokens,
-        ctypes.c_bool(True),
-        ctypes.c_bool(True)
-    )
-    
-    print(f"Tokenizing '{prefixed_word}' gave {n_tokens} tokens:")
-    
-    # We expect 2 tokens: a special token (128000) and the actual word token
-    if n_tokens < 2:
-        print(f"  Warning: Got fewer tokens than expected ({n_tokens})")
-        return None
+    for version in versions_to_try:
+        version_bytes = version.encode('utf-8')
+        max_tokens = 8
+        tokens = (llama_cpp.llama_token * max_tokens)()
         
-    # Skip the first token (128000 = <|begin_of_text|>)
-    word_token_id = tokens[1]  # Always use the second token
+        n_tokens = llama_cpp.llama_tokenize(
+            vocab,
+            version_bytes,
+            len(version_bytes),
+            tokens,
+            max_tokens,
+            ctypes.c_bool(True),
+            ctypes.c_bool(True)
+        )
+        
+        print(f"Tokenizing '{version}' gave {n_tokens} tokens:")
+        
+        if n_tokens == 1:
+            # Found a single-token representation!
+            token_bytes = llama_cpp.llama_vocab_get_text(vocab, tokens[0])
+            token_text = token_bytes.decode('utf-8', errors='replace').replace('Ġ', ' ').replace('Ċ', '\n')
+            print(f"  Found perfect match: ID {tokens[0]} = '{token_text}'")
+            return tokens[0]
+        
+        # If we get here with the space-prefixed version, we need to look at all tokens
+        if version.startswith(" "):
+            for i in range(n_tokens):
+                token_bytes = llama_cpp.llama_vocab_get_text(vocab, tokens[i])
+                token_text = token_bytes.decode('utf-8', errors='replace').replace('Ġ', ' ').replace('Ċ', '\n')
+                print(f"  Token {i}: ID {tokens[i]} = '{token_text}'")
+                
+                # If this token contains just the word we're looking for (ignoring spaces)
+                if token_text.strip() == word:
+                    print(f"  Found matching token: ID {tokens[i]} = '{token_text}'")
+                    return tokens[i]
     
-    # Get the text representation for logging
-    token_bytes = llama_cpp.llama_vocab_get_text(vocab, word_token_id)
-    token_text = token_bytes.decode('utf-8', errors='replace').replace('Ġ', ' ').replace('Ċ', '\n')
-    print(f"  Using token: ID {word_token_id} = '{token_text}'")
-    
-    return word_token_id
+    # If we get here, we couldn't find a suitable token
+    print(f"  Could not find a suitable token for '{word}'")
+    return None
 
 @app.on_event("startup")
 async def startup_event():
