@@ -11,6 +11,8 @@ import llama_cpp
 import random
 import json
 import platform
+import sys
+from pathlib import Path
 
 # C Bindings setup
 #lib_path = "/Users/jakesimonds/.pyenv/versions/3.11.11/lib/python3.11/site-packages/llama_cpp/lib/libllama.dylib"
