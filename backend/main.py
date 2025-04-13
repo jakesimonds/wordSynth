@@ -196,9 +196,35 @@ def get_hot_word_token(word: str) -> int:
                     print(f"  Found matching token: ID {tokens[i]} = '{token_text}'")
                     return tokens[i]
     
-    # If we get here, we couldn't find a suitable token
-    print(f"  Could not find a suitable token for '{word}'")
-    return None
+    # If we get here, we couldn't find a suitable token with regular tokenization
+    print(f"  Trying fallback approach for '{word}'...")
+    n_vocab = llama_cpp.llama_n_vocab(vocab)
+    best_match = None
+    best_score = 0
+
+    # Sample some tokens to find potential matches (checking all would be too slow)
+    for token_id in range(min(10000, n_vocab)):  # Check first 10000 tokens (most common ones)
+        try:
+            token_bytes = llama_cpp.llama_vocab_get_text(vocab, token_id)
+            token_text = token_bytes.decode('utf-8', errors='replace').replace('Ġ', ' ').replace('Ċ', '\n')
+            
+            # Simple scoring - longer matches are better
+            if word in token_text.strip():
+                match_len = len(word)
+                if match_len > best_score:
+                    best_score = match_len
+                    best_match = token_id
+                    print(f"  Found potential match: ID {token_id} = '{token_text}' (score: {match_len})")
+        except:
+            continue
+
+    if best_match is not None:
+        print(f"  Using best fallback match: ID {best_match}")
+        return best_match
+
+    # Last resort fallback - just use a common token like "the" if all else fails
+    print(f"  No match found, using default token")
+    return 279  # ID for " the" as a generic fallback
 
 @app.on_event("startup")
 async def startup_event():
@@ -341,17 +367,25 @@ async def stream_text(
                         
                         # Apply hot word boost when generating tokens
                         if actual_hot_word_id is not None and hot_word_boost_value > 1.0:
-                            # Get the original logit value
-                            original_logit = logits[actual_hot_word_id]
-                            
-                            # Simple boost - just multiply the logit by the boost factor
-                            # This increases probability without needing complex calculations
-                            boosted_logit = original_logit * hot_word_boost_value
-                            
-                            # Apply the boosted logit
-                            logits[actual_hot_word_id] = boosted_logit
-                            
-                            print(f"Boosting hot word '{hot_word_text}': {original_logit:.4f} → {boosted_logit:.4f} (factor: {hot_word_boost_value})")
+                            try:
+                                # Ensure actual_hot_word_id is within the valid range for the vocabulary
+                                if 0 <= actual_hot_word_id < n_vocab:
+                                    # Get the original logit value
+                                    original_logit = logits[actual_hot_word_id]
+                                    
+                                    # Simple boost - just multiply the logit by the boost factor
+                                    # This increases probability without needing complex calculations
+                                    boosted_logit = original_logit * hot_word_boost_value
+                                    
+                                    # Apply the boosted logit
+                                    logits[actual_hot_word_id] = boosted_logit
+                                    
+                                    print(f"Boosting hot word: {original_logit:.4f} → {boosted_logit:.4f} (factor: {hot_word_boost_value})")
+                                else:
+                                    print(f"Warning: Hot word token ID {actual_hot_word_id} is out of range (0-{n_vocab-1}). Skipping boost.")
+                            except Exception as boost_error:
+                                print(f"Error applying hot word boost: {str(boost_error)}")
+                                # Continue without boosting
                         
                         # First convert the raw logits to probabilities for display
                         max_logit = max(logits)
@@ -542,6 +576,13 @@ async def stream_text(
                             
                             next_token_id = top_indices[next_token_index]
                             sel_prob = raw_probs[next_token_id]  # Get the raw probability of the selected token
+                        
+                        # After token selection, add validation
+                        # Ensure next_token_id is valid before proceeding
+                        if next_token_id is None or not (0 <= next_token_id < n_vocab):
+                            print(f"Warning: Selected invalid token ID {next_token_id}. Using fallback.")
+                            next_token_id = top5_indices[0]  # Use the most likely token as fallback
+                            sel_prob = top5_probs[0]
                         
                         # Get token text using llama_vocab_get_text
                         token_bytes = llama_cpp.llama_vocab_get_text(vocab, next_token_id)
