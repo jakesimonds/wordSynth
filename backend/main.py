@@ -611,10 +611,44 @@ async def stream_text(
                         llama_cpp.llama_batch_free(next_batch)
                         
                     except Exception as e:
-                        print(f"Error generating token {token_idx+1}: {str(e)}")
-                        yield {"event": "error", "data": str(e)}
-                        break
-                    
+                        import traceback
+                        error_trace = traceback.format_exc()
+                        error_type = type(e).__name__
+                        error_msg = str(e)
+                        
+                        print(f"Generation error type: {error_type}")
+                        print(f"Generation error message: {error_msg}")
+                        print(f"Detailed traceback:\n{error_trace}")
+                        
+                        # Print some context about variables involved
+                        try:
+                            # Try to print any relevant variables that might be involved
+                            ctx_type = type(ctx).__name__ if 'ctx' in locals() else "Not available"
+                            model_type = type(model).__name__ if 'model' in locals() else "Not available"
+                            vocab_type = type(vocab).__name__ if 'vocab' in locals() else "Not available"
+                            
+                            print(f"Context type: {ctx_type}, Model type: {model_type}, Vocab type: {vocab_type}")
+                            
+                            # If the error happens during token generation, try to print token info
+                            if 'logits' in locals():
+                                print(f"Logits length: {len(logits)}")
+                            if 'next_token_id' in locals():
+                                print(f"Selected token ID: {next_token_id}")
+                            if 'actual_hot_word_id' in locals():
+                                print(f"Hot word token ID: {actual_hot_word_id}")
+                        except Exception as debug_error:
+                            print(f"Error while trying to print debug info: {str(debug_error)}")
+                        
+                        # Send the detailed error back to the client
+                        yield {"event": "error", "data": f"{error_type}: {error_msg}"}
+                        
+                        # Ensure KV cache is cleared even on error
+                        try:
+                            llama_cpp.llama_kv_cache_clear(ctx)
+                            print("KV cache cleared after error")
+                        except Exception as cleanup_error:
+                            print(f"Error clearing KV cache: {str(cleanup_error)}")
+                
                 print(f"\nGenerated full text: {generated_text}")
                 yield {"event": "done", "data": "complete"}
                 
