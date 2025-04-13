@@ -223,19 +223,19 @@ async def stream_text(
         async with generation_lock:
             try:
                 # Comment out all hot word related code
-                # actual_hot_word = hot_word if hot_word is not None else "the"
-                # actual_hot_word_id = get_hot_word_token(actual_hot_word)
+                actual_hot_word = hot_word if hot_word is not None else "the"
+                actual_hot_word_id = get_hot_word_token(actual_hot_word)
                 
-                # if actual_hot_word_id is None:
-                #     print(f"Warning: Could not find token for hot word '{actual_hot_word}'. Hot word boost will be disabled.")
-                # else:
-                #     # Get text representation for logging
-                #     hot_word_bytes = llama_cpp.llama_vocab_get_text(vocab, actual_hot_word_id)
-                #     hot_word_text = hot_word_bytes.decode('utf-8', errors='replace').replace('Ġ', ' ').replace('Ċ', '\n')
-                #     print(f"Using hot word: '{actual_hot_word}' => Token ID {actual_hot_word_id} ('{hot_word_text.strip()}')")
+                if actual_hot_word_id is None:
+                    print(f"Warning: Could not find token for hot word '{actual_hot_word}'. Hot word boost will be disabled.")
+                else:
+                    # Get text representation for logging
+                    hot_word_bytes = llama_cpp.llama_vocab_get_text(vocab, actual_hot_word_id)
+                    hot_word_text = hot_word_bytes.decode('utf-8', errors='replace').replace('Ġ', ' ').replace('Ċ', '\n')
+                    print(f"Using hot word: '{actual_hot_word}' => Token ID {actual_hot_word_id} ('{hot_word_text.strip()}')")
                 
                 # Ensure hot_word_boost is at least 1.0 (no negative effect)
-                # hot_word_boost_value = max(1.0, hot_word_boost)
+                hot_word_boost_value = max(1.0, hot_word_boost)
                 
                 # Clear KV cache before starting a new request
                 llama_cpp.llama_kv_cache_clear(ctx)
@@ -319,18 +319,18 @@ async def stream_text(
                         # ... repeat penalty, presence penalty, frequency penalty code ...
                         
                         # Apply hot word boost when generating tokens
-                        # if actual_hot_word_id is not None and hot_word_boost_value > 1.0:
-                        #     # Get the original logit value
-                        #     original_logit = logits[actual_hot_word_id]
-                        #     
-                        #     # Simple boost - just multiply the logit by the boost factor
-                        #     # This increases probability without needing complex calculations
-                        #     boosted_logit = original_logit * hot_word_boost_value
-                        #     
-                        #     # Apply the boosted logit
-                        #     logits[actual_hot_word_id] = boosted_logit
-                        #     
-                        #     print(f"Boosting hot word '{hot_word_text}': {original_logit:.4f} → {boosted_logit:.4f} (factor: {hot_word_boost_value})")
+                        if actual_hot_word_id is not None and hot_word_boost_value > 1.0:
+                            # Get the original logit value
+                            original_logit = logits[actual_hot_word_id]
+                            
+                            # Simple boost - just multiply the logit by the boost factor
+                            # This increases probability without needing complex calculations
+                            boosted_logit = original_logit * hot_word_boost_value
+                            
+                            # Apply the boosted logit
+                            logits[actual_hot_word_id] = boosted_logit
+                            
+                            print(f"Boosting hot word '{hot_word_text}': {original_logit:.4f} → {boosted_logit:.4f} (factor: {hot_word_boost_value})")
                         
                         # First convert the raw logits to probabilities for display
                         max_logit = max(logits)
