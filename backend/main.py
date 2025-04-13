@@ -128,7 +128,7 @@ def get_token_id(text: str) -> tuple:
     tokens = (llama_cpp.llama_token * max_tokens)()
     
     n = llama_cpp.llama_tokenize(
-        vocab,
+        ctx,
         text_bytes,
         len(text_bytes),
         tokens,
@@ -139,7 +139,7 @@ def get_token_id(text: str) -> tuple:
     
     token_info = []
     for i in range(n):
-        token_bytes = llama_cpp.llama_vocab_get_text(vocab, tokens[i])
+        token_bytes = llama_cpp.llama_token_to_str(ctx, tokens[i])
         token_text = token_bytes.decode('utf-8', errors='replace').replace('Ġ', ' ').replace('Ċ', '\n')
         token_info.append((tokens[i], token_text))
     
