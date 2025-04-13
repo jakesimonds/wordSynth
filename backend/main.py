@@ -143,66 +143,41 @@ def get_token_id(text: str) -> tuple:
 # Improved token identification for the hot word
 def get_hot_word_token(word: str) -> int:
     """Get the token ID for a given word, properly handling tokenization"""
-    # Try different prefixes to get proper tokenization
-    # Most tokenizers need a space prefix for words
-    best_token = None
-    best_token_text = ""
+    # Always use the space-prefixed version for consistency with how text is typically tokenized
+    prefixed_word = " " + word
+    prefixed_bytes = prefixed_word.encode('utf-8')
     
-    for prefix in [" ", ""]:
-        prefixed_word = prefix + word
-        prefixed_bytes = prefixed_word.encode('utf-8')
-        
-        # Create a token array
-        max_tokens = 8  # Allow several tokens for debugging
-        tokens = (llama_cpp.llama_token * max_tokens)()
-        
-        # Tokenize the word
-        n_tokens = llama_cpp.llama_tokenize(
-            vocab,
-            prefixed_bytes,
-            len(prefixed_bytes),
-            tokens,
-            max_tokens,
-            ctypes.c_bool(True),
-            ctypes.c_bool(True)
-        )
-        
-        # Debug print all tokens
-        print(f"Tokenizing '{prefixed_word}' with prefix '{prefix}' gave {n_tokens} tokens:")
-        for i in range(n_tokens):
-            token_bytes = llama_cpp.llama_vocab_get_text(vocab, tokens[i])
-            token_text = token_bytes.decode('utf-8', errors='replace').replace('Ġ', ' ').replace('Ċ', '\n')
-            print(f"  Token {i+1}: ID {tokens[i]} = '{token_text}'")
-            
-            # Skip special tokens like BOS, EOS, etc.
-            # These typically have very high token IDs
-            if tokens[i] > 100000:  # Special tokens are usually above 100k
-                print(f"  Skipping special token {tokens[i]} ('{token_text}')")
-                continue
-                
-            # For the space prefix version, skip the first token if it's just a space
-            if prefix == " " and i == 0 and token_text.strip() == "":
-                print(f"  Skipping space token {tokens[i]} ('{token_text}')")
-                continue
-                
-            # For multi-token words, pick a token that most closely resembles the word
-            # Prioritize exact matches of the word after trimming spaces
-            if token_text.strip() == word:
-                print(f"  Found exact match: {tokens[i]} ('{token_text}')")
-                return tokens[i]
-            
-            # Save this as a candidate if no exact match is found
-            if best_token is None or len(token_text.strip()) > len(best_token_text.strip()):
-                best_token = tokens[i]
-                best_token_text = token_text
+    # Create a token array
+    max_tokens = 8  # Allow several tokens for debugging
+    tokens = (llama_cpp.llama_token * max_tokens)()
     
-    if best_token is not None:
-        print(f"No exact match found. Using best candidate: {best_token} ('{best_token_text}')")
-        return best_token
+    # Tokenize the word
+    n_tokens = llama_cpp.llama_tokenize(
+        vocab,
+        prefixed_bytes,
+        len(prefixed_bytes),
+        tokens,
+        max_tokens,
+        ctypes.c_bool(True),
+        ctypes.c_bool(True)
+    )
     
-    # If no suitable token found, return None
-    print(f"Could not find suitable token for '{word}'")
-    return None
+    print(f"Tokenizing '{prefixed_word}' gave {n_tokens} tokens:")
+    
+    # We expect 2 tokens: a special token (128000) and the actual word token
+    if n_tokens < 2:
+        print(f"  Warning: Got fewer tokens than expected ({n_tokens})")
+        return None
+        
+    # Skip the first token (128000 = <|begin_of_text|>)
+    word_token_id = tokens[1]  # Always use the second token
+    
+    # Get the text representation for logging
+    token_bytes = llama_cpp.llama_vocab_get_text(vocab, word_token_id)
+    token_text = token_bytes.decode('utf-8', errors='replace').replace('Ġ', ' ').replace('Ċ', '\n')
+    print(f"  Using token: ID {word_token_id} = '{token_text}'")
+    
+    return word_token_id
 
 @app.on_event("startup")
 async def startup_event():
