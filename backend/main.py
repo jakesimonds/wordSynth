@@ -588,25 +588,42 @@ async def stream_text(
                         
                     except Exception as e:
                         import traceback
+                        import sys
                         error_trace = traceback.format_exc()
                         error_type = type(e).__name__
-                        print(f"Generation error: {str(e)}")
+                        print(f"GENERATION ERROR: {str(e)}")
                         print(f"Error type: {error_type}")
                         print(f"Detailed traceback:\n{error_trace}")
                         
-                        # Debug model path
+                        # Debug model and context status
                         print(f"Using model path: {model_path}")
+                        print(f"Model pointer is null: {model is None}")
+                        print(f"Context pointer is null: {ctx is None}")
                         
-                        # Check if model file exists
-                        import os.path
-                        if not os.path.exists(model_path):
-                            print(f"ERROR: Model file does not exist at {model_path}")
-                        else:
-                            print(f"Model file exists at {model_path}")
+                        # Check variables in the current scope
+                        local_vars = locals()
+                        print(f"Local variables available: {', '.join(local_vars.keys())}")
+                        
+                        # Try to access the C error message if available
+                        try:
+                            last_error = llama_cpp.llama_last_error()
+                            if last_error:
+                                print(f"Last llama.cpp error: {last_error}")
+                        except:
+                            print("Could not retrieve last llama.cpp error")
+                        
+                        # Check the vocabulary
+                        try:
+                            print(f"Vocab size: {llama_cpp.llama_n_vocab(vocab)}")
+                        except:
+                            print("Could not access vocabulary size")
                         
                         yield {"event": "error", "data": f"{error_type}: {str(e)}"}
                         # Ensure KV cache is cleared even on error
-                        llama_cpp.llama_kv_cache_clear(ctx)
+                        try:
+                            llama_cpp.llama_kv_cache_clear(ctx)
+                        except:
+                            print("Could not clear KV cache")
                 
                 print(f"\nGenerated full text: {generated_text}")
                 yield {"event": "done", "data": "complete"}
