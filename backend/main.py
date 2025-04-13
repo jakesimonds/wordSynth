@@ -29,8 +29,21 @@ try:
     # Method 1: Try using Python's package infrastructure
     import llama_cpp
     package_dir = Path(llama_cpp.__file__).parent
-    lib_path = str(package_dir / "lib" / f"libllama.{lib_extension}")
     
+    # Check for lib64 on Linux (EC2)
+    if platform.system() == "Linux":
+        lib_path = str(package_dir / "lib64" / f"libllama.{lib_extension}")
+        if not os.path.exists(lib_path):
+            # Fallback to lib if lib64 doesn't exist
+            lib_path = str(package_dir / "lib" / f"libllama.{lib_extension}")
+    else:
+        # Mac uses lib directory
+        lib_path = str(package_dir / "lib" / f"libllama.{lib_extension}")
+    
+    print(f"Looking for library at: {lib_path}")
+    if not os.path.exists(lib_path):
+        print(f"WARNING: Library file not found at {lib_path}")
+        
     lib = ctypes.CDLL(lib_path, mode=ctypes.RTLD_GLOBAL)
     print(f"Successfully loaded C library from {lib_path}")
 except Exception as e:
