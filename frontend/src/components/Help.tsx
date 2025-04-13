@@ -19,7 +19,7 @@ const Help: React.FC<HelpProps> = ({ isVisible, onClose }) => {
         <h2>Word Synth!</h2>
         
         <p>
-          If you're overwhelmed, press pause. 
+          If it's not working one thing to try is ctrl+q your browser...very experimental though apologies if its frustrating!
         </p>
         
         <h3>What is it?</h3>

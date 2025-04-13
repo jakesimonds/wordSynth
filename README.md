@@ -1,9 +1,10 @@
+# word synth!
+
+
 ## Running the Application
 
 ### Step 1: Download the Model
 First, download the required model by running the provided script:
-
-
 
 ```bash
 ./pull_model.sh
@@ -48,3 +49,7 @@ Open your browser and navigate to http://localhost:5173 to use WordSynth.
 
 ### Stopping the Servers
 To stop either server, press `Ctrl+C` in the respective terminal window.
+
+
+debug cheat sheet:
+sudo journalctl -u synth.service -n 500 --no-pager
