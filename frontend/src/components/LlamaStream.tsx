@@ -294,14 +294,6 @@ const TokenDisplay = ({ token, enableHover }: { token: GeneratedToken; enableHov
     >
       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
         <span>{token.text}</span>
-        <span style={{ 
-          fontSize: '0.6em', 
-          color: '#333',
-          display: 'block',
-          lineHeight: '1'
-        }}>
-          {Math.round(token.data.prob * 100)}%
-        </span>
       </div>
       
       {showTooltip && (
@@ -573,6 +565,78 @@ const LlamaStream = () => {
           }}
         >
           <Space direction="vertical" style={{ width: '100%', gap: '16px' }}>
+            <div 
+              style={{
+                display: "flex",
+                flexDirection: "column",
+                gap: "6px",
+                padding: "10px",
+                backgroundColor: "#f8f8f8",
+                borderRadius: "4px",
+                boxShadow: "0 1px 3px rgba(0,0,0,0.1)"
+              }}
+            >
+              <div style={{ 
+                fontWeight: "bold", 
+                fontSize: "0.9rem", 
+                color: "#333" 
+              }}>
+                Token Probability Legend
+              </div>
+              
+              <div style={{ 
+                fontSize: "0.8rem", 
+                color: "#333",
+                marginBottom: "4px"
+              }}>
+                Colors show token likelihood:
+              </div>
+              
+              <div 
+                style={{ 
+                  display: "flex", 
+                  height: "16px", 
+                  width: "100%",
+                  borderRadius: "3px",
+                  overflow: "hidden",
+                  marginBottom: "4px"
+                }}
+              >
+                {/* Simplified gradient legend */}
+                {Array.from({length: 5}).map((_, i) => {
+                  const hue = 120 * (i / 4); // 0 to 120 (red to green)
+                  const saturation = 80 + (20 * (i / 4)); // 80-100%
+                  const lightness = 90 - (30 * (i / 4)); // 60-90%
+                  return (
+                    <div
+                      key={i}
+                      style={{
+                        flex: 1,
+                        height: "100%",
+                        backgroundColor: `hsl(${hue}, ${saturation}%, ${lightness}%)`,
+                        position: "relative"
+                      }}
+                    >
+                      {i === 0 && (
+                        <span style={{ position: "absolute", left: "2px", fontSize: "8px", fontWeight: "bold" }}>
+                          0%
+                        </span>
+                      )}
+                      {i === 4 && (
+                        <span style={{ position: "absolute", right: "2px", fontSize: "8px", fontWeight: "bold" }}>
+                          100%
+                        </span>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+              
+              <div style={{ fontSize: "0.75rem", color: "#555" }}>
+                Hover for candidate options
+              </div>
+            </div>
+
             <Card title="Prompt: ">
               <div style={{ 
                 padding: '8px',
