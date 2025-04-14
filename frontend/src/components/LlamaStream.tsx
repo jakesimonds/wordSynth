@@ -258,6 +258,22 @@ function useStreamingGenerations(
 const TokenDisplay = ({ token, enableHover }: { token: GeneratedToken; enableHover: boolean }) => {
   const [showTooltip, setShowTooltip] = useState(false);
   
+  // Calculate a color based on the token probability
+  // High probability -> stronger color, low probability -> lighter color
+  const getBackgroundColor = (probability: number) => {
+    // Convert probability (0-1) to a hue value (120-0)
+    // High probability is green (120), low is red (0)
+    const hue = 120 * probability;
+    // Make the saturation and lightness dependent on probability too
+    const saturation = 80 + (20 * probability); // 80-100%
+    const lightness = 90 - (30 * probability); // 60-90%
+    
+    return `hsl(${hue}, ${saturation}%, ${lightness}%)`;
+  };
+  
+  // Get background color based on token probability
+  const backgroundColor = getBackgroundColor(token.data.prob);
+  
   return (
     <span 
       className="token"
@@ -265,7 +281,13 @@ const TokenDisplay = ({ token, enableHover }: { token: GeneratedToken; enableHov
         position: 'relative',
         display: 'inline-block',
         textAlign: 'center',
-        margin: '0 2px'
+        margin: '0 2px',
+        backgroundColor: backgroundColor,
+        padding: '2px 4px',
+        borderRadius: '4px',
+        transition: 'transform 0.1s ease',
+        zIndex: showTooltip ? 5000 : 1,
+        isolation: 'isolate'
       }}
       onMouseEnter={enableHover ? () => setShowTooltip(true) : undefined}
       onMouseLeave={enableHover ? () => setShowTooltip(false) : undefined}
@@ -274,7 +296,7 @@ const TokenDisplay = ({ token, enableHover }: { token: GeneratedToken; enableHov
         <span>{token.text}</span>
         <span style={{ 
           fontSize: '0.6em', 
-          color: '#888',
+          color: '#333',
           display: 'block',
           lineHeight: '1'
         }}>
@@ -285,18 +307,19 @@ const TokenDisplay = ({ token, enableHover }: { token: GeneratedToken; enableHov
       {showTooltip && (
         <div style={{
           position: 'absolute',
-          top: '100%',
+          top: '120%',
           left: '50%',
           transform: 'translateX(-50%)',
-          backgroundColor: 'rgba(0, 0, 0, 0.8)',
+          backgroundColor: 'rgba(0, 0, 0, 0.95)',
           color: 'white',
-          padding: '8px',
+          padding: '10px',
           borderRadius: '4px',
           fontSize: '0.8rem',
-          zIndex: 2000,
+          zIndex: 9999,
           width: 'max-content',
-          maxWidth: '200px',
-          boxShadow: '0 2px 10px rgba(0, 0, 0, 0.3)',
+          maxWidth: '250px',
+          boxShadow: '0 4px 15px rgba(0, 0, 0, 0.5)',
+          border: '1px solid rgba(255, 255, 255, 0.2)',
         }}>
           <div style={{ fontWeight: 'bold', marginBottom: '4px' }}>Top Candidates:</div>
           {token.data.top5.map((candidate, idx) => (
@@ -457,6 +480,8 @@ const LlamaStream = () => {
           .token:hover {
             background-color: rgba(0, 0, 0, 0.05);
             border-radius: 4px;
+            transform: scale(1.05);
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
           }
           
           /* Tooltip animations */
