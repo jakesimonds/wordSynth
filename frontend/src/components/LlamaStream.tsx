@@ -332,6 +332,30 @@ const TokenDisplay = ({ token, enableHover }: { token: GeneratedToken; enableHov
               </span>
             </div>
           ))}
+          
+          {/* Only show selected token section when it's not in top 5 */}
+          {!token.data.top5.some(candidate => candidate.id === token.data.id) && (
+            <div style={{
+              marginTop: '8px',
+              borderTop: '2px solid rgba(255, 255, 255, 0.2)',
+              paddingTop: '6px',
+            }}>
+              <div style={{ fontWeight: 'bold', marginBottom: '4px', color: '#ffca28' }}>
+                Selected token:
+              </div>
+              <div style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+              }}>
+                <span style={{ color: '#ffca28', fontWeight: 'bold' }}>
+                  {token.text || "<empty>"}
+                </span>
+                <span style={{ marginLeft: '8px', color: '#ffca28' }}>
+                  {Math.round(token.data.prob * 100)}%
+                </span>
+              </div>
+            </div>
+          )}
         </div>
       )}
     </span>
