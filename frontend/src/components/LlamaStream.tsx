@@ -950,7 +950,7 @@ const LlamaStream = () => {
                   <span>{params.top_p.toFixed(2)}</span>
                 </div>
                 <Slider
-                  min={0}
+                  min={0.05}
                   max={1}
                   step={0.01}
                   value={params.top_p}

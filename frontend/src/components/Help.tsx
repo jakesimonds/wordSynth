@@ -35,7 +35,7 @@ const Help: React.FC<HelpProps> = ({ isVisible, onClose }) => {
           <li><a href="https://github.com/jakesimonds/wordSynth">Code</a></li>
           <li><a href="https://jakesimonds.github.io/">me</a></li>
           <li><a href="http://latenthomer.com">Latent Homer (embedding search toy app)</a></li>
-          <li><a href="https://www.youtube.com/watch?v=dQw4w9WgXcQ">demo</a></li>
+          <li><a href="https://youtu.be/rLllToK64jM">demo</a></li>
         </ul>
       </div>
     </Modal>
