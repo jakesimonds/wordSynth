@@ -91,17 +91,7 @@ const LandingPage = () => {
           
           Just like a synthesizer allows you to manipulate sound in real time with knobs and sliders, Word Synth lets you manipulate generations of a Llama3.2 1B model in real time via exposed sampling parameters.
 
-          <p style={{ marginTop: isMobile ? "0.5rem" : "1.25rem", marginBottom: isMobile ? "0.25rem" : "0.75rem" }}><b>Things to Try:</b></p>
-          <ul style={{ 
-            paddingLeft: isMobile ? "1.25rem" : "2rem",
-            marginBottom: isMobile ? "0.5rem" : "1.25rem",
-            marginTop: "0"
-          }}>
-            <li>Set temp, top_p or top_k all the way down..the outcome becomes deterministic.</li>
-            <li>Set top_k to 2 and observe that you only see two first tokens</li>
-            <li>If anything breaks, ctrl+q your browser. If that doesn't work I'm sorry</li>
-            <li>See if you can 'crash' the model into giving you nonsense</li>
-          </ul>
+
         </div>
 
         <div style={{
