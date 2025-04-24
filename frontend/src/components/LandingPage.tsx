@@ -5,19 +5,19 @@ import { Button, Select } from "antd";
 const LandingPage = () => {
   // Predefined options
   const promptOptions = [
+    "Tell me a joke, please.",
     "Repeat the word hello over and over again 100 times.",
     "Who is Ned Flanders?",
-    "Explain pointers, are they just a C thing or other languages too",
-    "In rhyming verses describe vacation destinations",
-    "Do a hello world program in java, but along with hello world it also implements a few other simple features."
+    "What is Domain Driven Design?",
+    "<div>hello world</div>"
   ];
 
   const hotWordOptions = [
-    "the",
     "banana",
+    "the",
     "ch",
-    "an",
-    "earth"
+    "and",
+    "interesting"
   ];
 
   const [inputPrompt, setInputPrompt] = useState(promptOptions[0]);
