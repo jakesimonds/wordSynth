@@ -3,6 +3,8 @@ import { Slider, Space, Card, Skeleton, Select } from "antd";
 import { useLocation, Navigate, useNavigate } from 'react-router-dom';
 // Import the Help component
 import Help from './Help';
+// Import the ClipboardLifeline component
+import ClipboardLifeline from './ClipboardButton';
 
 // Define API_BASE to handle both development and production environments
 const API_BASE = import.meta.env.DEV 
@@ -460,6 +462,7 @@ const LlamaStream = () => {
 
   return (
     <div style={{ display: "flex", flexDirection: "column", height: "100vh" }}>
+      <ClipboardLifeline bannerMode />
       <style>
         {`
           .header-link {
@@ -749,7 +752,7 @@ const LlamaStream = () => {
               style={{
                 width: "100%",
                 padding: "12px",
-                marginBottom: "26px",
+                marginBottom: "12px",
                 fontSize: "28px",
                 backgroundColor: "#007bff",
                 color: "white",
@@ -760,6 +763,9 @@ const LlamaStream = () => {
             >
               ?
             </button>
+
+            {/* Add Clipboard Button */}
+            <ClipboardLifeline />
           </Space>
         </div>
 

@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button, Select } from "antd";
+import ClipboardLifeline from './ClipboardButton';
 
 const LandingPage = () => {
   // Predefined options
@@ -48,7 +49,7 @@ const LandingPage = () => {
       display: "flex",
       flexDirection: "column",
       alignItems: "center",
-      justifyContent: "center",
+      justifyContent: "flex-start",
       background: "linear-gradient(45deg, #2b1331, #000000)",
       padding: isMobile ? "0.5rem" : "2rem",
       boxSizing: "border-box",
@@ -59,6 +60,7 @@ const LandingPage = () => {
       right: 0,
       bottom: 0
     }}>
+      <ClipboardLifeline bannerMode />
       <div style={{
         width: "100%",
         maxWidth: isMobile ? "100%" : "1200px",
